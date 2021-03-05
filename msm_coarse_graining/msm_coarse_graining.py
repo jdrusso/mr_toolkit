@@ -21,13 +21,16 @@ def build_fine_transition_matrix(height_ratio: float, num_bins: int) -> np.ndarr
         A num_bins x num_bins tri-diagonal, row-normalized transition matrix.
     """
 
-    t_matrix = np.eye(num_bins, num_bins) * height_ratio + \
-        np.eye(num_bins, num_bins, -1) + \
-        np.eye(num_bins, num_bins,  1)
+    t_matrix = (
+        np.eye(num_bins, num_bins) * height_ratio
+        + np.eye(num_bins, num_bins, -1)
+        + np.eye(num_bins, num_bins, 1)
+    )
 
     normalized_t_matrix = t_matrix / np.sum(t_matrix, axis=1)[:, np.newaxis]
 
     return normalized_t_matrix
+
 
 def coarse_grain(P: np.ndarray, cg_map: np.ndarray, w: np.ndarray):
     """
@@ -67,17 +70,17 @@ def coarse_grain(P: np.ndarray, cg_map: np.ndarray, w: np.ndarray):
             for i in cg_map[m]:
                 for j in cg_map[n]:
 
-                    T[m,n] += w[i] * P[i,j]
+                    T[m, n] += w[i] * P[i, j]
 
             # Finished an m,n pair, so normalize by the total weight of macrobin m
             microbins = cg_map[m]
             w_tot = np.sum(w[microbins])
-            T[m,n] /= w_tot
+            T[m, n] /= w_tot
 
     return T
 
 
-def compute_avg_bin_weights(initial_weights, transition_matrix, max_s):
+def compute_avg_bin_weights(initial_weights, transition_matrix, max_s, lag=1):
     """
     Obtain the time-averaged bin weights for a lag of 1, described by
 
@@ -97,20 +100,31 @@ def compute_avg_bin_weights(initial_weights, transition_matrix, max_s):
         List of time-averaged weights for each bin
     """
 
-
     weights = np.full_like(initial_weights, fill_value=0.0)
-    n_bins = len(transition_matrix)
 
-    for s in range(max_s):
+    # Remember, at a lag of 1 this should iterate over values from 0 to max_s - 1
+    # Need the +1 because range is end-exclusive
+    for s in range(max_s - lag + 1):
 
-        new_weights = np.dot(initial_weights, np.linalg.matrix_power(transition_matrix, s))
+        new_weights = np.dot(
+            initial_weights, np.linalg.matrix_power(transition_matrix, s)
+        )
         weights += new_weights
-        # for k in range(n_bins):
-        #
-        #     new_weights = initial_weights[k] * np.linalg.matrix_power(transition_matrix, s)[k,:]
-        #     print(new_weights)
-        #     weights += new_weights
 
     weights /= max_s
 
     return weights
+
+
+def build_occupancy():
+    """
+    Builds the occupancy matrix as
+
+    .. math::  \\Omega = \\frac{1}{S} \\sum_{\\lambda = 1}^{S} \\mathbf{T}  (S, \\lambda)
+
+    Returns
+    -------
+
+    """
+
+    pass

@@ -32,7 +32,7 @@ def build_fine_transition_matrix(height_ratio: float, num_bins: int) -> np.ndarr
     return normalized_t_matrix
 
 
-def coarse_grain(P: np.ndarray, cg_map: np.ndarray, w: np.ndarray):
+def coarse_grain(P: np.ndarray, cg_map: np.ndarray, w: np.ndarray, lag: int = 1, normalize=True):
     """
     Coarse-grains a fine-grained transition matrix according to some mapping of microstates to macrostates and weights
     over the microstates.
@@ -42,9 +42,15 @@ def coarse_grain(P: np.ndarray, cg_map: np.ndarray, w: np.ndarray):
     P : np.ndarray
         Fine-grained transition matrix.
     cg_map : list of lists
-        List of all microstates in a macrostate.
+        List of all microstates in each macrostate.
     w : np.ndarray
         Microbin weights.
+    lag : int
+        Lag for Markov model.
+    normalize : bool
+        Normalize the resulting matrix over the weights.
+        This should be off when building an occupancy matrix over many lags, because there the normalization is over
+            all w_i.
 
     Returns
     -------
@@ -70,17 +76,19 @@ def coarse_grain(P: np.ndarray, cg_map: np.ndarray, w: np.ndarray):
             for i in cg_map[m]:
                 for j in cg_map[n]:
 
-                    T[m, n] += w[i] * P[i, j]
+                    T[m, n] += w[i] * np.linalg.matrix_power(P, lag)[i, j]
 
             # Finished an m,n pair, so normalize by the total weight of macrobin m
             microbins = cg_map[m]
             w_tot = np.sum(w[microbins])
-            T[m, n] /= w_tot
+
+            if normalize:
+              T[m, n] /= w_tot
 
     return T
 
 
-def compute_avg_bin_weights(initial_weights, transition_matrix, max_s, lag=1):
+def compute_avg_bin_weights(initial_weights, transition_matrix, max_s: int, lag: int = 1):
     """
     Obtain the time-averaged bin weights for a lag of 1, described by
 
@@ -93,6 +101,12 @@ def compute_avg_bin_weights(initial_weights, transition_matrix, max_s, lag=1):
 
     transition_matrix : np.ndarray
         Transition matrix.
+
+    max_s : int
+        Time horizon S
+
+    lag : int
+        Lag used for Markov model.
 
     Returns
     -------
@@ -111,20 +125,49 @@ def compute_avg_bin_weights(initial_weights, transition_matrix, max_s, lag=1):
         )
         weights += new_weights
 
-    weights /= max_s
+    weights /= (max_s - lag + 1)
 
     return weights
 
 
-def build_occupancy():
+def build_occupancy(fg_matrix: np.ndarray, initial_weights: np.ndarray, cg_map, s, time_horizon: int):
     """
     Builds the occupancy matrix as
 
     .. math::  \\Omega = \\frac{1}{S} \\sum_{\\lambda = 1}^{S} \\mathbf{T}  (S, \\lambda)
 
+    Parameters
+    ----------
+    fg_matrix : np.ndarray
+        The fine-grained matrix.
+    initial_weights : np.ndarray or list
+        Vector of initial weights.
+    cg_map : list of lists
+        List of all microstates in each macrostate.
+    s : int
+        Maximum trajectory length.
+    time_horizon : int
+        Time horizon.
+
     Returns
     -------
-
+    occ : np.ndarray
+        The occupancy matrix, computed as above.
     """
+
+    n_cg_bins = len(cg_map)
+    occupancy = np.zeros(shape=(n_cg_bins, n_cg_bins))
+
+    for lag in range(1, time_horizon+1):
+
+        w_i = compute_avg_bin_weights(initial_weights, fg_matrix, max_s=s, lag=lag)
+
+        cg_matrix = coarse_grain(fg_matrix, cg_map, w_i, lag=lag, normalize=False)
+        occupancy += cg_matrix
+
+    occupancy /= time_horizon
+    normed_occupancy = occupancy / np.sum(occupancy, axis=1)[:, np.newaxis]
+
+    return normed_occupancy
 
     pass

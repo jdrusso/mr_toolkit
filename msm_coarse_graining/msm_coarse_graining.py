@@ -12,7 +12,6 @@ def build_fine_transition_matrix(height_ratio: float, num_bins: int) -> np.ndarr
     height_ratio : float
         Ratio of the transition probability to self vs to neighbor bin.
         This is a proxy for the inter-bin barrier height.
-
     num_bins : int
         Number of bins in the transition matrix.
 
@@ -20,7 +19,6 @@ def build_fine_transition_matrix(height_ratio: float, num_bins: int) -> np.ndarr
     -------
     t_matrix : np.ndarray
         A num_bins x num_bins tri-diagonal, row-normalized transition matrix.
-
     """
 
     t_matrix = np.eye(num_bins, num_bins) * height_ratio + \
@@ -47,7 +45,8 @@ def coarse_grain(P: np.ndarray, cg_map: np.ndarray, w: np.ndarray):
 
     Returns
     -------
-    Coarse-grained transition matrix.
+    p_matrix : np.ndarray
+        Coarse-grained transition matrix.
 
     Examples
     --------
@@ -76,3 +75,42 @@ def coarse_grain(P: np.ndarray, cg_map: np.ndarray, w: np.ndarray):
             T[m,n] /= w_tot
 
     return T
+
+
+def compute_avg_bin_weights(initial_weights, transition_matrix, max_s):
+    """
+    Obtain the time-averaged bin weights for a lag of 1, described by
+
+    .. math::  \\bar{w_i} = \\frac{1}{S} \\sum_{s=0}^{S-1} \\sum_k w_k(0) \\, (\\mathbf{P}^s)_{k \\rightarrow i}
+
+    Parameters
+    ----------
+    initial_weights : np.ndarray or list
+        List or array of initial microbin-weights.
+
+    transition_matrix : np.ndarray
+        Transition matrix.
+
+    Returns
+    -------
+    wi_bar : np.ndarray
+        List of time-averaged weights for each bin
+    """
+
+
+    weights = np.full_like(initial_weights, fill_value=0.0)
+    n_bins = len(transition_matrix)
+
+    for s in range(max_s):
+
+        new_weights = np.dot(initial_weights, np.linalg.matrix_power(transition_matrix, s))
+        weights += new_weights
+        # for k in range(n_bins):
+        #
+        #     new_weights = initial_weights[k] * np.linalg.matrix_power(transition_matrix, s)[k,:]
+        #     print(new_weights)
+        #     weights += new_weights
+
+    weights /= max_s
+
+    return weights

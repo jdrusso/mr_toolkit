@@ -1,4 +1,4 @@
-"""Main module."""
+"""Main module with code for coarse-graining transition matrices and computing bin-weights."""
 import numpy as np
 
 
@@ -18,7 +18,7 @@ def build_fine_transition_matrix(height_ratio: float, num_bins: int) -> np.ndarr
     Returns
     -------
     t_matrix : np.ndarray
-        A num_bins x num_bins tri-diagonal, row-normalized transition matrix.
+        A (`num_bins` x `num_bins`) tri-diagonal, row-normalized transition matrix.
     """
 
     t_matrix = (
@@ -40,11 +40,11 @@ def compute_avg_bin_weights(initial_weights, transition_matrix, max_s: int, lag:
 
     Parameters
     ----------
-    initial_weights : np.ndarray or list
+    initial_weights : array-like
         List or array of initial microbin-weights.
 
     transition_matrix : np.ndarray
-        Transition matrix.
+        (`n_states` x `n_states`) Transition matrix.
 
     max_s : int
         Maximum trajectory length :math:`S`
@@ -54,7 +54,7 @@ def compute_avg_bin_weights(initial_weights, transition_matrix, max_s: int, lag:
 
     Returns
     -------
-    wi_bar : np.ndarray
+    wi_bar : np.ndarray (`n_states`)
         List of time-averaged weights for each bin
     """
 
@@ -74,7 +74,7 @@ def compute_avg_bin_weights(initial_weights, transition_matrix, max_s: int, lag:
     return weights
 
 
-def coarse_grain(P: np.ndarray, cg_map: np.ndarray, w: np.ndarray, lag: int = 1, normalize=True):
+def coarse_grain(P: np.ndarray, cg_map: np.ndarray, w: np.ndarray, lag: int = 1, normalize: bool = True) -> np.ndarray:
     """
     Coarse-grains a fine-grained transition matrix according to some mapping of microstates to macrostates and weights
     over the microstates.
@@ -89,7 +89,7 @@ def coarse_grain(P: np.ndarray, cg_map: np.ndarray, w: np.ndarray, lag: int = 1,
         Fine-grained transition matrix.
     cg_map : list of lists
         List of all microstates in each macrostate.
-    w : np.ndarray
+    w : array-like
         Microbin weights :math:`\\wi`.
     lag : int
         Lag for Markov model :math:`\\lag`.
@@ -135,7 +135,7 @@ def coarse_grain(P: np.ndarray, cg_map: np.ndarray, w: np.ndarray, lag: int = 1,
     return T
 
 
-def build_occupancy(fg_matrix: np.ndarray, initial_weights: np.ndarray, cg_map, s, time_horizon: int):
+def build_occupancy(fg_matrix: np.ndarray, initial_weights: np.ndarray, cg_map: list, s: int, time_horizon: int) -> np.ndarray:
     """
     Builds the occupancy matrix as
 

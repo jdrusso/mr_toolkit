@@ -58,6 +58,8 @@ def compute_avg_bin_weights(initial_weights, transition_matrix, max_s: int, lag:
         List of time-averaged weights for each bin
     """
 
+    assert max_s >= lag, "Trajectory length S is shorter than lag!"
+
     weights = np.full_like(initial_weights, fill_value=0.0)
 
     # Remember, at a lag of 1 this should iterate over values from 0 to max_s - 1

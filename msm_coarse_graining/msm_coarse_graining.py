@@ -212,12 +212,17 @@ def get_equil(transition_matrix: np.ndarray) -> np.ndarray:
     # assert len(eval_1_idxs) > 0, 'No eigenvalues of 1 found!'
     eval_1_idx = eval_1_idxs[0]
 
-    _equil = evecs[:, eval_1_idx]
-    _equil = _equil / sum(_equil)
+    _equil_nonorm = evecs[:, eval_1_idx]
+    _equil = _equil_nonorm / sum(_equil_nonorm)
 
-    # Sanity check, but unnecessary
+    # Sanity check, no longer necessary
     msm_equil = msmtools.analysis.stationary_distribution(transition_matrix)
     assert np.all(np.isclose(_equil, msm_equil))
+
+    # Sanity check for stationarity, possibly more necessary than the previous
+    first_step_equil = np.matmul(_equil, transition_matrix)
+    equil_is_stationary = np.all(np.isclose(first_step_equil, _equil))
+    assert equil_is_stationary, "Equilibrium not stationary under this 'stationary' solution!"
 
     return _equil
 
@@ -242,5 +247,10 @@ def get_comm(transition_matrix: np.ndarray, statesA: list, statesB: list) -> np.
     """
 
     _comms = msmtools.analysis.committor(transition_matrix, statesA, statesB)
+
+    # Sanity check for stationarity
+    first_step_comms = np.matmul(transition_matrix, _comms)
+    committor_is_stationary = np.all(np.isclose(first_step_comms, _comms))
+    assert committor_is_stationary, "Committors not stationary under this solution!"
 
     return _comms

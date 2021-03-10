@@ -1,5 +1,7 @@
 """Main module with code for coarse-graining transition matrices and computing bin-weights."""
 import numpy as np
+import scipy.linalg as la
+import msmtools
 
 
 def build_fine_transition_matrix(height_ratio: float, num_bins: int) -> np.ndarray:
@@ -26,6 +28,10 @@ def build_fine_transition_matrix(height_ratio: float, num_bins: int) -> np.ndarr
         + np.eye(num_bins, num_bins, -1)
         + np.eye(num_bins, num_bins, 1)
     )
+
+    # The boundary elements only have 1 neighbor, so give them an extra 1 from the missing neighbor.
+    t_matrix[0,0] += 1
+    t_matrix[-1,-1] += 1
 
     normalized_t_matrix = t_matrix / np.sum(t_matrix, axis=1)[:, np.newaxis]
 
@@ -181,3 +187,60 @@ def build_occupancy(fg_matrix: np.ndarray, initial_weights: np.ndarray, cg_map: 
     normed_occupancy = occupancy / np.sum(occupancy, axis=1)[:, np.newaxis]
 
     return normed_occupancy
+
+
+def get_equil(transition_matrix: np.ndarray) -> np.ndarray:
+    """
+    Computes the equilibrium distribution for an input transition matrix by taking the left-eigenvector of transition_matrix
+    with an eigenvalue of 1.
+
+    Parameters
+    ----------
+    transition_matrix : np.ndarray
+        The transition matrix.
+
+    Returns
+    -------
+    equil : np.ndarray
+        Equilibrium distribution for
+
+    """
+
+    evals, evecs = la.eig(transition_matrix, left=True, right=False)
+
+    eval_1_idxs = np.where(np.isclose(evals, 1))[0]
+    # assert len(eval_1_idxs) > 0, 'No eigenvalues of 1 found!'
+    eval_1_idx = eval_1_idxs[0]
+
+    _equil = evecs[:, eval_1_idx]
+    _equil = _equil / sum(_equil)
+
+    # Sanity check, but unnecessary
+    msm_equil = msmtools.analysis.stationary_distribution(transition_matrix)
+    assert np.all(np.isclose(_equil, msm_equil))
+
+    return _equil
+
+
+def get_comm(transition_matrix: np.ndarray, statesA: list, statesB: list) -> np.ndarray:
+    """
+    Computes the committor for a given transition matrix, source states, and target states.
+
+    Parameters
+    ----------
+    transition_matrix : np.ndarray
+        Transition matrix.
+    statesA : array-like
+        Source/origin state(s).
+    statesB : array-like
+        Target state(s).
+
+    Returns
+    -------
+    committors : np.ndarray
+        Array of committors to statesB for each bin.
+    """
+
+    _comms = msmtools.analysis.committor(transition_matrix, statesA, statesB)
+
+    return _comms

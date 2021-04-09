@@ -2,6 +2,7 @@
 import numpy as np
 import scipy.linalg as la
 import msmtools
+from copy import deepcopy
 
 
 def build_fine_transition_matrix(height_ratio: float, num_bins: int) -> np.ndarray:
@@ -123,22 +124,39 @@ def coarse_grain(P: np.ndarray, cg_map: np.ndarray, w: np.ndarray, lag: int = 1,
 
     T = np.full(shape=(num_cg_bins, num_cg_bins), fill_value=0.0)
 
+    mat_pow = np.linalg.matrix_power(P, lag)
+
     # Iterate over every pair of n,m
+    # TODO: There's probably a way to get rid of this explicit iteration
+    #   At the very least, I could iterate over pairs of (m,n) but I'm not sure that's actually any faster than nested
     for m in range(num_cg_bins):
         for n in range(num_cg_bins):
 
             # For each of those pairs, iterate over each of the i, j elements
-            for i in cg_map[m]:
-                for j in cg_map[n]:
 
-                    T[m, n] += w[i] * np.linalg.matrix_power(P, lag)[i, j]
+            T_dot = sum(np.dot(
+                        w[cg_map[m]],
+                        mat_pow[np.ix_(cg_map[m], cg_map[n])],
+            ))
+
+            # Old, explicitly looping implementation
+            # T_iter = 0
+            # for i in cg_map[m]:
+            #     for j in cg_map[n]:
+            #
+            #         T_iter += w[i] * mat_pow[i, j]
+
+            T[m,n] = T_dot
 
             # Finished an m,n pair, so normalize by the total weight of macrobin m
             microbins = cg_map[m]
             w_tot = np.sum(w[microbins])
 
             if normalize:
-              T[m, n] /= w_tot
+                if w_tot == 0:
+                    T[m,n] = 0.0
+                else:
+                    T[m, n] /= w_tot
 
     return T
 
@@ -189,7 +207,7 @@ def build_occupancy(fg_matrix: np.ndarray, initial_weights: np.ndarray, cg_map: 
     return normed_occupancy
 
 
-def get_equil(transition_matrix: np.ndarray) -> np.ndarray:
+def get_equil(transition_matrix: np.ndarray, normalize: bool = True, _round: int = 15) -> np.ndarray:
     """
     Computes the equilibrium distribution for an input transition matrix by taking the left-eigenvector of transition_matrix
     with an eigenvalue of 1.
@@ -198,6 +216,9 @@ def get_equil(transition_matrix: np.ndarray) -> np.ndarray:
     ----------
     transition_matrix : np.ndarray
         The transition matrix.
+
+    _round : int, optional (12)
+        Number of decimal places of precision to keep in the equil distribution.
 
     Returns
     -------
@@ -209,22 +230,57 @@ def get_equil(transition_matrix: np.ndarray) -> np.ndarray:
     evals, evecs = la.eig(transition_matrix, left=True, right=False)
 
     eval_1_idxs = np.where(np.isclose(evals, 1))[0]
-    # assert len(eval_1_idxs) > 0, 'No eigenvalues of 1 found!'
-    eval_1_idx = eval_1_idxs[0]
+    assert len(eval_1_idxs) > 0, 'No eigenvalues of 1 found!'
+    # assert len(eval_1_idxs) < 2, 'Multiple eigenvalues of 1 found!'
 
-    _equil_nonorm = evecs[:, eval_1_idx]
-    _equil = _equil_nonorm / sum(_equil_nonorm)
+    for i, eval_1_idx in enumerate(eval_1_idxs):
+        # print(f"Checking eigval index {eval_1_idx}")
+
+        # Check if distribution is positive semidefinite
+        # eval_1_idx = eval_1_idxs[0]
+        _equil_nonorm = evecs[:, eval_1_idx]
+        _equil_nonorm[abs(_equil_nonorm) < 1e-15] = 0.0
+
+        # Negative semidefinite will normalize to positive semidefinite
+        if np.all(_equil_nonorm >= 0.0) or np.all(_equil_nonorm <= 0.0):
+            # print(_equil_nonorm)
+            break
+
+        if i == len(eval_1_idxs)-1:
+            raise Exception('No eigenvalue corresponding to a positive semidefinite range found')
+
+    # print(evecs[eval_1_idxs])
+    # print(evals[eval_1_idxs])
+    # print(_equil_nonorm)
+
+    normalization = [1, sum(_equil_nonorm)][normalize]
+    _equil = _equil_nonorm / normalization
+
+    # Sometimes there is a 0 imaginary component, ensure that this is indeed 0 and then if so, strip it.
+    assert np.isreal(_equil).all()
+    _equil = np.real(_equil)
 
     # Sanity check, no longer necessary
     msm_equil = msmtools.analysis.stationary_distribution(transition_matrix)
-    assert np.all(np.isclose(_equil, msm_equil))
+    try:
+        assert np.all(np.isclose(_equil, msm_equil, rtol=.001)), f"Equil does not match msmtools equil. \n\t Eig: {_equil} "+\
+                                                             f"\n\t MSMtools: {msm_equil}"
+    except AssertionError as e:
+        # log.raise(e)
+        # print("Warning: Equil and MSMtools equilibrium dists don't agree")
+        pass
 
     # Sanity check for stationarity, possibly more necessary than the previous
     first_step_equil = np.matmul(_equil, transition_matrix)
     equil_is_stationary = np.all(np.isclose(first_step_equil, _equil))
     assert equil_is_stationary, "Equilibrium not stationary under this 'stationary' solution!"
 
+    # if not normalize:
+    #     return _equil
+    # else:
+    #     return _equil, normalization
     return _equil
+    # return msm_equil
 
 
 def get_comm(transition_matrix: np.ndarray, statesA: list, statesB: list) -> np.ndarray:
@@ -244,9 +300,23 @@ def get_comm(transition_matrix: np.ndarray, statesA: list, statesB: list) -> np.
     -------
     committors : np.ndarray
         Array of committors to statesB for each bin.
+
+    Raises
+    ------
+    AssertionError
+        The solved committor distribution does not obey first-step stationarity.
+
+    Todo
+    -----
+    Replace :code:`msmtools.analysis.committor` call with my own committor calculator.
+
     """
 
+    raise DeprecationWarning
+
     _comms = msmtools.analysis.committor(transition_matrix, statesA, statesB)
+
+    # _comms =
 
     # Sanity check for stationarity
     first_step_comms = np.matmul(transition_matrix, _comms)
@@ -254,3 +324,65 @@ def get_comm(transition_matrix: np.ndarray, statesA: list, statesB: list) -> np.
     assert committor_is_stationary, "Committors not stationary under this solution!"
 
     return _comms
+
+
+def get_hill_mfpt(ss_dist, T, target_mesostates):
+    """
+    Compute the MFPT via the Hill relation.
+
+    From the Hill relation, the MFPT is the inverse flux into the target state, or
+
+    .. math::  \\hillrelation
+
+
+    Parameters
+    ----------
+    ss_dist: array-like
+        Stationary distribution.
+
+    T: array-like
+        Transition matrix. (What BCs?)
+
+    target_mesostates: array-like
+        Target states for MFPT calculation.
+
+    Returns
+    -------
+    MFPT: float
+        First-passage time estimate.
+    """
+
+    # Get the flux into the target from each state
+    flux = np.dot(ss_dist, T[:,target_mesostates])
+
+    MFPT = 1./flux.sum()
+
+    return MFPT
+
+def get_naive_hill_mfpt(T_ss, ss_dist, target_mesostates, all_other_states):
+    """
+    This SHOULD just be an explicit, un-optimized version of get_hill_mfpt to make sure I got the linear algebra right
+    """
+
+    flux = 0
+
+
+    for target in target_mesostates:
+        for source in all_other_states:
+            flux += ss_dist[source] * T_ss[source, target]
+
+    return 1./flux
+
+
+def make_ss(cg_matrix, target_state, source_state, keep_sink_entry=False):
+
+    _ss_matrix = deepcopy(cg_matrix)
+
+    if not keep_sink_entry:
+        _ss_matrix[:, source_state] += _ss_matrix[:, target_state]
+        _ss_matrix[:, target_state] = 0.0
+    else:
+        _ss_matrix[target_state, :] = 0.0
+        _ss_matrix[target_state, source_state] = 1.0
+
+    return _ss_matrix

@@ -39,7 +39,7 @@ def build_fine_transition_matrix(height_ratio: float, num_bins: int) -> np.ndarr
     return normalized_t_matrix
 
 
-def compute_avg_bin_weights(initial_weights, transition_matrix, max_s: int, lag: int = 1):
+def compute_avg_bin_weights(initial_weights, transition_matrix, max_s: int, lag: int = 1, min_s: int  = 0):
     """
     Obtain the time-averaged bin weights for a lag of 1, described by
 
@@ -59,6 +59,9 @@ def compute_avg_bin_weights(initial_weights, transition_matrix, max_s: int, lag:
     lag : int
         Lag used for Markov model :math:`\lag`.
 
+    min_s : int
+        Earliest trajectory point to use in sliding window calculation. Defaults to 0.
+
     Returns
     -------
     wi_bar : np.ndarray (`n_states`)
@@ -71,7 +74,7 @@ def compute_avg_bin_weights(initial_weights, transition_matrix, max_s: int, lag:
 
     # Remember, at a lag of 1 this should iterate over values from 0 to max_s - 1
     # Need the +1 because range is end-exclusive
-    for s in range(max_s - lag + 1):
+    for s in range(min_s, max_s - lag + 1):
 
         new_weights = np.dot(
             initial_weights, np.linalg.matrix_power(transition_matrix, s)

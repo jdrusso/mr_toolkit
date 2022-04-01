@@ -297,8 +297,9 @@ def optimized_resliced_voelz(_trajs, n_iterations, _N, n_states,
         # If any probabilities are zero that were not zero before, set them to the minimum weight and renormalize
         if _iter > 0:
             below_min = np.argwhere((stationary_distributions[-1] > 0) & (stationary < min_weight)).flatten()
+            below_min = np.setdiff1d(below_min, traps)
             if len(below_min) > 0:
-                print(f"In iter {_iter}, {len(below_min)} states with nonzero probabilities dropped below minimum weight in the new distribution..."
+                print(f"In iter {_iter}, {len(below_min)} non-trap states with nonzero probabilities dropped below minimum weight in the new distribution..."
                       f" Setting them to {min_weight} and renormalizing.")
                 stationary[below_min] = min_weight
                 stationary = stationary / stationary.sum()

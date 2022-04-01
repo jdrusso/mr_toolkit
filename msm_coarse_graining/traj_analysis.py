@@ -3,6 +3,7 @@ from rich.logging import RichHandler
 import numpy as np
 from copy import deepcopy
 import tqdm.auto as tqdm
+from msm_we.msm_we import find_connected_sets
 
 logging.basicConfig(
     level="NOTSET",

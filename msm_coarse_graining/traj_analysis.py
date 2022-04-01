@@ -153,7 +153,9 @@ def optimized_resliced_voelz(_trajs, n_iterations, _N, n_states,
 
                 # The last possible fragment start is _N back from the end of the trajectory, because fragments
                 #   are fixed length. (i.e., you don't get a bunch of increasingly short fragments at the end)
-                latest_fragment_start = min(transition_start_point+1, len(_traj)-_N)
+                # 3/28 removed a +1 from transition_start_point...
+                # latest_fragment_start = min(transition_start_point, len(_traj)-_N)
+                latest_fragment_start = min(first_fragment_start+1, len(_traj)-_N)
 
                 # For my last_n starts, I want to chop off latest_fragment_start. Before, it was bounded by the
                 #   minimum of the transition start point (ensure it doesn't go before the start), and the length of
@@ -164,7 +166,10 @@ def optimized_resliced_voelz(_trajs, n_iterations, _N, n_states,
                 #      transition_start_point+1,
                 #      (transition_start_point - _N + 1) + _N  = transition_start_point + 1
                 #   )
-                latest_fragment_start = min(latest_fragment_start, int(first_fragment_start + (_N * last_frac)))
+                latest_fragment_start = min(latest_fragment_start,
+                                            int(first_fragment_start + (_N * last_frac)))
+                # latest_fragment_start = min(latest_fragment_start,
+                #                             first_fragment_start + ())
 
 
                 fragment_start_idxs = range(first_fragment_start, latest_fragment_start)

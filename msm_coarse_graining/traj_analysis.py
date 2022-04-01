@@ -52,7 +52,8 @@ def optimized_resliced_voelz(_trajs, n_iterations, _N, n_states,
                              _initial_weights=None, return_matrices=False,
                              last_frac=1.0,
                              # reweight_last_point=False,
-                             debug=False):
+                             debug=False,
+                             min_weight=1e-12):
     """
     Do Markov model building, using iterative reweighting.
 
@@ -216,16 +217,70 @@ def optimized_resliced_voelz(_trajs, n_iterations, _N, n_states,
             where=row_sums != 0,
         ).T
         transition_matrix[row_sums == 0] = 0.0
+
+        # # ! Zero out disconnected states and renormalize
+        # connected_sets = find_connected_sets(transition_matrix)
+        # try:
+        #     assert len(connected_sets) == 1, f"{len(connected_sets)} separate connected sets exist in iter {_iter}!"
+        # except AssertionError as e:
+        #     log.warning(e)
+        #     log.warning(f"Sizes are {[len(x) for x in connected_sets]}")
+        # disconnected_states = np.array([i for sl in connected_sets[2:] for i in sl])
+        # transition_matrix[disconnected_states, :] = 0.0
+        # transition_matrix[:, disconnected_states] = 0.0
+        # row_sums = np.sum(transition_matrix, axis=1)
+        # transition_matrix = np.divide(
+        #     transition_matrix,
+        #     row_sums,
+        #     out=np.zeros_like(transition_matrix),
+        #     where=row_sums != 0,
+        # ).T
+        # transition_matrix[row_sums == 0] = 0.0
+
+
         matrices.append(transition_matrix)
 
         # * Get the stationary distribution
         evals, evecs = np.linalg.eig(transition_matrix.T)
+
         max_eig_index = np.argmin(1 - evals)
+
         stationary = np.real(evecs[:, max_eig_index]) / np.real(
             sum(evecs[:, max_eig_index])
         )
 
-        assert np.isclose(stationary.sum(), 1.0), "Stationary distribution not normalized!"
+        # HACK: Sometimes you'll get a stationary distribution with everything in one state.. probably points to a
+        #   deeper problem
+        # if len(np.argwhere(stationary).flatten()) == 1:
+        i = 0
+        while len(np.argwhere(stationary).flatten()) == 1 or np.any(stationary/sum(stationary) < 0):
+            i += 1
+
+            if i >= len(evals):
+                log.critical('No good stationary solution exists!')
+                assert False, "No stationary solution could be found"
+
+            if len(np.argwhere(stationary).flatten()) == 1:
+                log.warning(f"Stationary solution {i} is all in one bin in iter {_iter} -- picking next-biggest eigenvalue")
+            if np.any(stationary/sum(stationary) < 0):
+                log.warning(f'Stationary solution {i} is not positive semidefinite, trying the next one')
+            max_eig_index = np.argsort(1-evals)[i]
+            stationary = np.real(evecs[:, max_eig_index]) / np.real(
+                sum(evecs[:, max_eig_index])
+            )
+
+        # If any probabilities are zero that were not zero before, set them to the minimum weight and renormalize
+        if _iter > 0:
+            below_min = np.argwhere((stationary_distributions[-1] > 0) & (stationary < min_weight)).flatten()
+            if len(below_min) > 0:
+                print(f"In iter {_iter}, {len(below_min)} states with nonzero probabilities dropped below minimum weight in the new distribution..."
+                      f" Setting them to {min_weight} and renormalizing.")
+                stationary[below_min] = min_weight
+                stationary = stationary / stationary.sum()
+
+        assert np.isclose(stationary.sum(), 1.0), f"Stationary distribution not normalized in iter {_iter}!"
+        assert np.all(stationary >= 0), \
+            f"Stationary distribution not all positive!"
         stationary_distributions.append(stationary)
 
         # * Compute the new fragment weights

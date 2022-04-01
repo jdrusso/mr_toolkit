@@ -17,6 +17,41 @@ log.setLevel(logging.INFO)
 # from line_profiler_pycharm import profile
 
 
+def find_traps(transition_matrix):
+
+    # Identify empty states (row and col sum to 0)
+    empty_states = np.argwhere(np.isclose(np.sum(transition_matrix, axis=1), 0) &
+                               np.isclose(np.sum(transition_matrix.T, axis=1), 0))
+
+    # Identify strict sinks (Row sums to 0)
+    sink_states = np.argwhere(np.isclose(np.sum(transition_matrix, axis=1), 0))
+
+    # Identify strict sources (Column sums to 0)
+    source_states = np.argwhere(np.isclose(np.sum(transition_matrix.T, axis=1), 0))
+
+    # Identify disjoint states (Includes islands and self-transition-only (which are a special case of islands anyway ))
+    disjoint_states = np.concatenate(find_connected_sets(transition_matrix)[1:])
+
+    from functools import reduce
+    all_trap_states = reduce(np.union1d, (empty_states, sink_states, source_states, disjoint_states))
+
+    return all_trap_states, (empty_states, sink_states, source_states, disjoint_states)
+
+
+def clean_matrix(transition_matrix):
+
+    cleaned_transition_matrix = transition_matrix.copy()
+    all_trap_states, (empty_states, sink_states, source_states, disjoint_states) = find_traps(transition_matrix)
+
+    while len(all_trap_states) > len(empty_states):
+        print(f"{len(all_trap_states) - len(empty_states)} non-empty trap states exist")
+        cleaned_transition_matrix[all_trap_states,:] = 0.0
+        cleaned_transition_matrix[:,all_trap_states] = 0.0
+        all_trap_states, (empty_states, sink_states, source_states, disjoint_states) = find_traps(cleaned_transition_matrix)
+
+    return cleaned_transition_matrix, all_trap_states, (empty_states, sink_states, source_states, disjoint_states)
+
+
 def remap_trajs(trajs):
     """
     Take a set of state trajectories, and remap the states to be consecutive. I.e., [0,1,3,5,6] becomes [0,1,2,3,4]
@@ -215,34 +250,18 @@ def optimized_resliced_voelz(_trajs, n_iterations, _N, n_states,
         weighted_count_matrix = np.einsum('ijk,i->jk', _count_matrices, transition_weights)
 
         # * Row-normalize into a transition matrix
+
+        weighted_count_matrix, traps, (empty, _, _, _) = clean_matrix(weighted_count_matrix)
         row_sums = np.sum(weighted_count_matrix, axis=1)
+
+        good_states = np.setdiff1d(np.arange(weighted_count_matrix.shape[0]), traps)
+
         transition_matrix = np.divide(
             weighted_count_matrix.T,
             row_sums,
             out=np.zeros_like(weighted_count_matrix),
-            where=row_sums != 0,
+            where=np.isin(np.arange(weighted_count_matrix.shape[0]), good_states),
         ).T
-        transition_matrix[row_sums == 0] = 0.0
-
-        # # ! Zero out disconnected states and renormalize
-        # connected_sets = find_connected_sets(transition_matrix)
-        # try:
-        #     assert len(connected_sets) == 1, f"{len(connected_sets)} separate connected sets exist in iter {_iter}!"
-        # except AssertionError as e:
-        #     log.warning(e)
-        #     log.warning(f"Sizes are {[len(x) for x in connected_sets]}")
-        # disconnected_states = np.array([i for sl in connected_sets[2:] for i in sl])
-        # transition_matrix[disconnected_states, :] = 0.0
-        # transition_matrix[:, disconnected_states] = 0.0
-        # row_sums = np.sum(transition_matrix, axis=1)
-        # transition_matrix = np.divide(
-        #     transition_matrix,
-        #     row_sums,
-        #     out=np.zeros_like(transition_matrix),
-        #     where=row_sums != 0,
-        # ).T
-        # transition_matrix[row_sums == 0] = 0.0
-
 
         matrices.append(transition_matrix)
 

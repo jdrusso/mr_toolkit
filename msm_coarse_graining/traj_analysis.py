@@ -208,6 +208,7 @@ def optimized_resliced_voelz(_trajs, n_iterations, _N, n_states,
     # ! Iteratively: assign weights and compute stationary
     stationary_distributions = []
     matrices = []
+    all_transition_weights = [transition_weights]
     for _iter in range(n_iterations):
 
         # * Get the new weighted count matrix
@@ -300,11 +301,19 @@ def optimized_resliced_voelz(_trajs, n_iterations, _N, n_states,
                                        out=np.zeros_like(new_stationary), where=new_stationary > 0)
         new_stationary = new_stationary/new_stationary.sum()
 
-        assert np.isclose(new_stationary.sum(), 1.0), f"New distribution not normalized! Sums to {new_stationary.sum()}"
+        assert np.isclose(new_stationary.sum(), 1.0), \
+            f"New distribution not normalized in iter {_iter}! Sums to {new_stationary.sum()}"
+        assert np.all(new_stationary >= 0), \
+            f"New distribution not all positive!"
+
 
         transition_weights = np.divide(new_stationary, _counts,
                                        out=np.zeros_like(new_stationary), where=_counts > 0)
-        pass
+
+
+        all_transition_weights.append(transition_weights)
+
+        # TODO: Break out of this if you're converged, i.e. if the distributions are no longer changing
 
     # ! Return the final stationary distribution
     if return_matrices:

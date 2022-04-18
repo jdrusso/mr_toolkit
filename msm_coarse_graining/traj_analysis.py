@@ -20,18 +20,23 @@ log.setLevel(logging.INFO)
 
 def find_traps(transition_matrix):
 
+    atol = 1e-8 # numpy default
+
     # Identify empty states (row and col sum to 0)
-    empty_states = np.argwhere(np.isclose(np.sum(transition_matrix, axis=1), 0) &
-                               np.isclose(np.sum(transition_matrix.T, axis=1), 0))
+    empty_states = np.argwhere(np.isclose(np.sum(transition_matrix, axis=1), 0, atol=atol) &
+                               np.isclose(np.sum(transition_matrix.T, axis=1), 0, atol=atol))
 
     # Identify strict sinks (Row sums to 0)
-    sink_states = np.argwhere(np.isclose(np.sum(transition_matrix, axis=1), 0))
+    sink_states = np.argwhere(np.isclose(np.sum(transition_matrix, axis=1), 0, atol=atol))
 
     # Identify strict sources (Column sums to 0)
-    source_states = np.argwhere(np.isclose(np.sum(transition_matrix.T, axis=1), 0))
+    source_states = np.argwhere(np.isclose(np.sum(transition_matrix.T, axis=1), 0, atol=atol))
 
     # Identify disjoint states (Includes islands and self-transition-only (which are a special case of islands anyway ))
-    disjoint_states = np.concatenate(find_connected_sets(transition_matrix)[1:])
+    connected_sets = find_connected_sets(transition_matrix)
+    disjoint_states = []
+    if len(connected_sets) > 1:
+        disjoint_states = np.concatenate(connected_sets[1:]).flatten()
 
     from functools import reduce
     all_trap_states = reduce(np.union1d, (empty_states, sink_states, source_states, disjoint_states))
@@ -329,9 +334,11 @@ def optimized_resliced_voelz(_trajs, n_iterations, _N, n_states,
 
         # * Row-normalize into a transition matrix
 
-        weighted_count_matrix, traps, (empty, _, _, _) = clean_matrix(weighted_count_matrix)
+        # weighted_count_matrix, traps, (empty, _, _, _) = clean_matrix(weighted_count_matrix)
         row_sums = np.sum(weighted_count_matrix, axis=1)
 
+        traps = []
+        empty = []
         good_states = np.setdiff1d(np.arange(weighted_count_matrix.shape[0]), traps)
 
         transition_matrix = np.divide(
@@ -341,6 +348,7 @@ def optimized_resliced_voelz(_trajs, n_iterations, _N, n_states,
             where=np.isin(np.arange(weighted_count_matrix.shape[0]), good_states),
         ).T
 
+        # Note - this is NOT a copy!
         matrices.append(transition_matrix)
 
         # * Get the stationary distribution
@@ -404,7 +412,6 @@ def optimized_resliced_voelz(_trajs, n_iterations, _N, n_states,
         assert np.all(new_stationary >= 0), \
             f"New distribution not all positive!"
 
-
         transition_weights = np.divide(new_stationary, _counts,
                                        out=np.zeros_like(new_stationary), where=_counts > 0)
 
@@ -415,7 +422,7 @@ def optimized_resliced_voelz(_trajs, n_iterations, _N, n_states,
 
     # ! Return the final stationary distribution
     if return_matrices:
-        return stationary_distributions, matrices
+        return stationary_distributions, matrices, _count_matrices
     else:
         return stationary_distributions
 

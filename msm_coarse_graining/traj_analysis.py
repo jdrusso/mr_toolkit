@@ -4,6 +4,7 @@ import numpy as np
 from copy import deepcopy
 import tqdm.auto as tqdm
 from msm_we.msm_we import find_connected_sets
+from deeptime.clustering import KMeansModel
 
 logging.basicConfig(
     level="NOTSET",
@@ -47,9 +48,86 @@ def clean_matrix(transition_matrix):
         print(f"{len(all_trap_states) - len(empty_states)} non-empty trap states exist")
         cleaned_transition_matrix[all_trap_states,:] = 0.0
         cleaned_transition_matrix[:,all_trap_states] = 0.0
-        all_trap_states, (empty_states, sink_states, source_states, disjoint_states) = find_traps(cleaned_transition_matrix)
+        all_trap_states, (empty_states, sink_states, source_states, disjoint_states) = find_traps(
+            cleaned_transition_matrix)
 
     return cleaned_transition_matrix, all_trap_states, (empty_states, sink_states, source_states, disjoint_states)
+
+
+
+def transform_stratified(cluster_centers, projection, bin_boundaries, tic_rmsd):
+
+    discretized = [np.full(len(x[1][0]), fill_value=np.nan) for x in projection]
+    traj_starts = np.cumsum([len(x) for x in discretized])
+
+    cluster_offset = 0
+
+    for i, (bin_lower, bin_upper) in tqdm.tqdm(
+            enumerate(zip(bin_boundaries[:-1], bin_boundaries[1:])),
+            total=len(bin_boundaries)-1):
+
+        # Make a KMeans estimator using only the cluster centers in this bin
+        center_idxs_in_bin = np.argwhere(
+            (cluster_centers[:, tic_rmsd] >= bin_lower) &
+            (cluster_centers[:, tic_rmsd] < bin_upper)
+        ).flatten()
+
+        _clustering = KMeansModel(
+            cluster_centers[center_idxs_in_bin],
+            metric="euclidean",
+            # fixed_seed=True
+        )
+        print(f"{center_idxs_in_bin.shape} centers in bin {i}")
+
+
+        # For each trajectory, get its points that fall in the current bin
+        all_traj_idxs_in_bin = []
+        all_traj_points_in_bin = []
+        for traj_idx, (traj_time_indices, traj_projection) in enumerate(projection):
+
+            # print(f"Traj shape is {traj_projection.shape}")
+            assert traj_projection.shape[0] == 10
+
+            # Get the indices of points in the current bin
+            traj_idxs_in_bin = np.argwhere(
+                (traj_projection[tic_rmsd, :] >= bin_lower) &
+                (traj_projection[tic_rmsd, :] < bin_upper)
+            ).flatten()
+
+            all_traj_idxs_in_bin.append(traj_idxs_in_bin)
+
+            if len(traj_idxs_in_bin) > 0:
+
+                assert len(_clustering._cluster_centers) > 0, f"Trajs but no cluster centers in bin {i}! {bin_lower} = {bin_upper}"
+
+            # Now also get the actual points, to make clustering easier
+            all_traj_points_in_bin.append(traj_projection[:, traj_idxs_in_bin])
+
+        all_points_together = np.hstack(all_traj_points_in_bin).T
+        # print(f"All together, shape is {all_points_together.shape}")
+
+        if all_points_together.shape[0] == 0:
+            print(f"No trajs in this set had points in bin {i}")
+            continue
+
+        # Now discretize the parts of each trajectory that are in this bin
+        for traj_idx in range(len(projection)):
+
+            traj_idxs_in_bin = all_traj_idxs_in_bin[traj_idx]
+            traj_points_in_bin = all_traj_points_in_bin[traj_idx].T
+
+            # print(f"{traj_idxs_in_bin.shape} points in bin {i}")
+
+            transformed = _clustering.transform(traj_points_in_bin) + cluster_offset
+
+            # print(transformed)
+
+            discretized[traj_idx][traj_idxs_in_bin] = transformed
+
+        cluster_offset += len(_clustering.cluster_centers)
+        # print(f"Cluster offset is now {}")
+
+    return discretized, cluster_centers, bin_boundaries
 
 
 def remap_trajs(trajs):

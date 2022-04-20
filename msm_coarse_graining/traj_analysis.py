@@ -167,6 +167,7 @@ def remap_trajs(trajs):
 
 
 def optimized_resliced_voelz(_trajs, n_iterations, _N, n_states,
+                             lagtime=1,
                              _initial_weights=None, return_matrices=False,
                              last_frac=1.0,
                              # reweight_last_point=False,
@@ -258,7 +259,7 @@ def optimized_resliced_voelz(_trajs, n_iterations, _N, n_states,
 
             # Only go up to len-1 here, because the last point isn't a transition and
             #   we're going over transitions, not fragments
-            for transition_start_point in range(0, len(_traj)-1):
+            for transition_start_point in range(0, len(_traj)-lagtime):
 
                 # Get all points that could be the start of a
                 #   fragment containing this transition
@@ -269,7 +270,9 @@ def optimized_resliced_voelz(_trajs, n_iterations, _N, n_states,
                 # The earliest fragment this can be a part of is one where it's the last transition start point, which
                 #   was _N+1 ago
                 # Make sure we don't go negative, though
-                first_fragment_start = max(0, transition_start_point-_N+1)
+                # Another way of putting this: The earliest fragment that can contain this transition must also
+                #   contain the transition end point
+                first_fragment_start = max(0, transition_start_point + lagtime - _N)
 
                 # The last possible fragment start is _N back from the end of the trajectory, because fragments
                 #   are fixed length. (i.e., you don't get a bunch of increasingly short fragments at the end)
@@ -309,7 +312,7 @@ def optimized_resliced_voelz(_trajs, n_iterations, _N, n_states,
                     fragment_start_points = _traj[fragment_start_idxs]
 
                 transition_from = _traj[transition_start_point]
-                transition_to = _traj[transition_start_point+1]
+                transition_to = _traj[transition_start_point+lagtime]
 
 
                 # If fragment_start_points is [3,3,1], then matrix 3 needs to get +2, and matrix 1 needs to get +1

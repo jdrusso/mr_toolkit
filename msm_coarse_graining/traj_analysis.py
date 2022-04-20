@@ -171,7 +171,9 @@ def optimized_resliced_voelz(_trajs, n_iterations, _N, n_states,
                              last_frac=1.0,
                              # reweight_last_point=False,
                              debug=False,
-                             min_weight=1e-12):
+                             min_weight=1e-12,
+                             convergence=None
+                             ):
     """
     Do Markov model building, using iterative reweighting.
 
@@ -393,7 +395,21 @@ def optimized_resliced_voelz(_trajs, n_iterations, _N, n_states,
         assert np.isclose(stationary.sum(), 1.0), f"Stationary distribution not normalized in iter {_iter}!"
         assert np.all(stationary >= 0), \
             f"Stationary distribution not all positive!"
+
         stationary_distributions.append(stationary)
+
+        if _iter > 1 and convergence is not None:
+            # rms_change = np.sqrt(np.mean(np.power(stationary - stationary_distributions[-1], 2)))
+            # print(f"RMS change was {rms_change:.1e}")
+
+            abs_kl_unweighted = np.nansum(np.abs(
+                np.log(stationary_distributions[-1]) - np.log(stationary_distributions[-2])
+            ))
+            print(f"Abs unwgt. KL change was {abs_kl_unweighted:.5e}")
+            if abs_kl_unweighted < convergence:
+                print(f"Voelz iteration is converged at iter {_iter}")
+                break
+
 
         # * Compute the new fragment weights
         # But I need to normalize transition weights by counts here!
@@ -422,7 +438,7 @@ def optimized_resliced_voelz(_trajs, n_iterations, _N, n_states,
 
     # ! Return the final stationary distribution
     if return_matrices:
-        return stationary_distributions, matrices, _count_matrices
+        return stationary_distributions, matrices, _count_matrices, _iter
     else:
         return stationary_distributions
 

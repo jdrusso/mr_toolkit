@@ -343,12 +343,18 @@ def optimized_resliced_voelz(_trajs, n_iterations, _N, n_states,
         empty = []
         good_states = np.setdiff1d(np.arange(weighted_count_matrix.shape[0]), traps)
 
-        transition_matrix = np.divide(
-            weighted_count_matrix.T,
-            row_sums,
-            out=np.zeros_like(weighted_count_matrix),
-            where=np.isin(np.arange(weighted_count_matrix.shape[0]), good_states),
-        ).T
+        try:
+            transition_matrix = np.divide(
+                weighted_count_matrix.T,
+                row_sums,
+                out=np.zeros_like(weighted_count_matrix),
+                where=np.isin(np.arange(weighted_count_matrix.shape[0]), good_states) & (row_sums > 0),
+            ).T
+        except np.linalg.LinAlgError as e:
+
+            print(_iter)
+
+            raise e
 
         # Note - this is NOT a copy!
         matrices.append(transition_matrix)
@@ -366,12 +372,16 @@ def optimized_resliced_voelz(_trajs, n_iterations, _N, n_states,
         #   deeper problem
         # if len(np.argwhere(stationary).flatten()) == 1:
         i = 0
+        bad_stationary = False
         while len(np.argwhere(stationary).flatten()) == 1 or np.any(stationary/sum(stationary) < 0):
             i += 1
 
             if i >= len(evals):
-                log.critical('No good stationary solution exists!')
-                assert False, "No stationary solution could be found"
+            # if evals[i] < 0.9:
+                log.critical(f'No good stationary solution exists! Stopping iteration at iter {_iter}')
+                bad_stationary = True
+                break
+                # assert False, "No stationary solution could be found"
 
             if len(np.argwhere(stationary).flatten()) == 1:
                 log.warning(f"Stationary solution {i} is all in one bin in iter {_iter} -- picking next-biggest eigenvalue")
@@ -381,6 +391,9 @@ def optimized_resliced_voelz(_trajs, n_iterations, _N, n_states,
             stationary = np.real(evecs[:, max_eig_index]) / np.real(
                 sum(evecs[:, max_eig_index])
             )
+
+        if bad_stationary:
+            break
 
         # If any probabilities are zero that were not zero before, set them to the minimum weight and renormalize
         if _iter > 0:

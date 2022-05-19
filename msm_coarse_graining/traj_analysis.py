@@ -103,7 +103,9 @@ def transform_stratified(cluster_centers, projection, bin_boundaries, tic_rmsd):
 
             if len(traj_idxs_in_bin) > 0:
 
-                assert len(_clustering._cluster_centers) > 0, f"Trajs but no cluster centers in bin {i}! {bin_lower} = {bin_upper}"
+                assert len(_clustering._cluster_centers) > 0, f"Trajs but no cluster centers in bin {i}! " \
+                                                              f"{bin_lower} <-> {bin_upper}" \
+                                                              f"\n Traj points: {traj_idxs_in_bin}"
 
             # Now also get the actual points, to make clustering easier
             all_traj_points_in_bin.append(traj_projection[:, traj_idxs_in_bin])
@@ -211,6 +213,10 @@ def optimized_resliced_voelz(_trajs, n_iterations, _N, n_states,
 
     assert _N > 0, "N must be > 0"
 
+    # A lag time of 1 requires _N = 1 or greater
+    # At a lag time of 2
+    assert lagtime <= _N, "Lag time must be <= N (fragment length)"
+
     # ! Set up the initial distribution (uniform if not specified)
     # n_states = len(_initial_weights)
 
@@ -243,7 +249,7 @@ def optimized_resliced_voelz(_trajs, n_iterations, _N, n_states,
     # all_traj_count_matrix = np.zeros((n_states, n_states))
     _count_matrices = np.zeros(shape=(n_states, n_states, n_states))
 
-    total_steps = len(_trajs) * len(_trajs[0][:-1])
+    total_steps = len(_trajs) * len(_trajs[0][:-lagtime])
     with tqdm.tqdm(
         total=total_steps, desc="Building count matrices", miniters=int(total_steps/1000)
     ) as pbar:
@@ -332,125 +338,140 @@ def optimized_resliced_voelz(_trajs, n_iterations, _N, n_states,
     stationary_distributions = []
     matrices = []
     all_transition_weights = [transition_weights]
-    for _iter in range(n_iterations):
+    prev_kl = 0
+    with tqdm.tqdm(total=-np.log10(convergence), disable=convergence is None, desc="Reweighting convergence") as pbar:
+        for _iter in range(n_iterations):
 
-        # * Get the new weighted count matrix
-        weighted_count_matrix = np.einsum('ijk,i->jk', _count_matrices, transition_weights)
+            # * Get the new weighted count matrix
+            weighted_count_matrix = np.einsum('ijk,i->jk', _count_matrices, transition_weights)
 
-        # * Row-normalize into a transition matrix
+            # * Row-normalize into a transition matrix
 
-        # weighted_count_matrix, traps, (empty, _, _, _) = clean_matrix(weighted_count_matrix)
-        row_sums = np.sum(weighted_count_matrix, axis=1)
+            # weighted_count_matrix, traps, (empty, _, _, _) = clean_matrix(weighted_count_matrix)
+            row_sums = np.sum(weighted_count_matrix, axis=1)
 
-        traps = []
-        empty = []
-        good_states = np.setdiff1d(np.arange(weighted_count_matrix.shape[0]), traps)
+            traps = []
+            empty = []
+            good_states = np.setdiff1d(np.arange(weighted_count_matrix.shape[0]), traps)
 
-        try:
-            transition_matrix = np.divide(
-                weighted_count_matrix.T,
-                row_sums,
-                out=np.zeros_like(weighted_count_matrix),
-                where=np.isin(np.arange(weighted_count_matrix.shape[0]), good_states) & (row_sums > 0),
-            ).T
-        except np.linalg.LinAlgError as e:
+            try:
+                transition_matrix = np.divide(
+                    weighted_count_matrix.T,
+                    row_sums,
+                    out=np.zeros_like(weighted_count_matrix),
+                    where=np.isin(np.arange(weighted_count_matrix.shape[0]), good_states) & (row_sums > 0),
+                ).T
+            except np.linalg.LinAlgError as e:
 
-            print(_iter)
+                print(_iter)
 
-            raise e
+                raise e
 
-        # Note - this is NOT a copy!
-        matrices.append(transition_matrix)
+            # Note - this is NOT a copy!
+            matrices.append(transition_matrix)
 
-        # * Get the stationary distribution
-        evals, evecs = np.linalg.eig(transition_matrix.T)
+            # * Get the stationary distribution
+            evals, evecs = np.linalg.eig(transition_matrix.T)
 
-        max_eig_index = np.argmin(1 - evals)
+            max_eig_index = np.argmin(1 - evals)
 
-        stationary = np.real(evecs[:, max_eig_index]) / np.real(
-            sum(evecs[:, max_eig_index])
-        )
-
-        # HACK: Sometimes you'll get a stationary distribution with everything in one state.. probably points to a
-        #   deeper problem
-        # if len(np.argwhere(stationary).flatten()) == 1:
-        i = 0
-        bad_stationary = False
-        while len(np.argwhere(stationary).flatten()) == 1 or np.any(stationary/sum(stationary) < 0):
-            i += 1
-
-            if i >= len(evals):
-            # if evals[i] < 0.9:
-                log.critical(f'No good stationary solution exists! Stopping iteration at iter {_iter}')
-                bad_stationary = True
-                break
-                # assert False, "No stationary solution could be found"
-
-            if len(np.argwhere(stationary).flatten()) == 1:
-                log.warning(f"Stationary solution {i} is all in one bin in iter {_iter} -- picking next-biggest eigenvalue")
-            if np.any(stationary/sum(stationary) < 0):
-                log.warning(f'Stationary solution {i} is not positive semidefinite, trying the next one')
-            max_eig_index = np.argsort(1-evals)[i]
             stationary = np.real(evecs[:, max_eig_index]) / np.real(
                 sum(evecs[:, max_eig_index])
             )
 
-        if bad_stationary:
-            break
+            # Clean any VERY small values that are below my minimum weight cutoff
+            stationary[(stationary < 0) & (stationary > -min_weight)] = 0.0
+            stationary = stationary / sum(stationary)
 
-        # If any probabilities are zero that were not zero before, set them to the minimum weight and renormalize
-        if _iter > 0:
-            below_min = np.argwhere((stationary_distributions[-1] > 0) & (stationary < min_weight)).flatten()
-            below_min = np.setdiff1d(below_min, traps)
-            if len(below_min) > 0:
-                print(f"In iter {_iter}, {len(below_min)} non-trap states with nonzero probabilities dropped below minimum weight in the new distribution..."
-                      f" Setting them to {min_weight} and renormalizing.")
-                stationary[below_min] = min_weight
-                stationary = stationary / stationary.sum()
+            # HACK: Sometimes you'll get a stationary distribution with everything in one state.. probably points to a
+            #   deeper problem
+            # if len(np.argwhere(stationary).flatten()) == 1:
+            i = 0
+            bad_stationary = False
+            while len(np.argwhere(stationary).flatten()) == 1 or np.any(stationary/sum(stationary) < 0):
+                i += 1
 
-        assert np.isclose(stationary.sum(), 1.0), f"Stationary distribution not normalized in iter {_iter}!"
-        assert np.all(stationary >= 0), \
-            f"Stationary distribution not all positive!"
+                if i >= len(evals):
+                # if evals[i] < 0.9:
+                    log.critical(f'No good stationary solution exists! Stopping iteration at iter {_iter}')
+                    bad_stationary = True
+                    break
+                    # assert False, "No stationary solution could be found"
 
-        stationary_distributions.append(stationary)
+                if len(np.argwhere(stationary).flatten()) == 1:
+                    log.warning(f"Stationary solution {i} is all in one bin in iter {_iter} -- picking next-biggest eigenvalue")
+                if np.any(stationary/sum(stationary) < 0):
+                    log.warning(f'Stationary solution {i} is not positive semidefinite, trying the next one')
+                max_eig_index = np.argsort(1-evals)[i]
+                stationary = np.real(evecs[:, max_eig_index]) / np.real(
+                    sum(evecs[:, max_eig_index])
+                )
 
-        if _iter > 1 and convergence is not None:
-            # rms_change = np.sqrt(np.mean(np.power(stationary - stationary_distributions[-1], 2)))
-            # print(f"RMS change was {rms_change:.1e}")
-
-            abs_kl_unweighted = np.nansum(np.abs(
-                np.log(stationary_distributions[-1]) - np.log(stationary_distributions[-2])
-            ))
-            print(f"Abs unwgt. KL change was {abs_kl_unweighted:.5e}")
-            if abs_kl_unweighted < convergence:
-                print(f"Voelz iteration is converged at iter {_iter}")
+            if bad_stationary:
                 break
 
+            # If any probabilities are zero that were not zero before, set them to the minimum weight and renormalize
+            if _iter > 0:
+                below_min = np.argwhere((stationary_distributions[-1] > 0) & (stationary < min_weight)).flatten()
+                below_min = np.setdiff1d(below_min, traps)
+                if len(below_min) > 0:
+                    log.debug(f"In iter {_iter}, {len(below_min)} non-trap states with nonzero probabilities dropped "
+                              f"below minimum weight in the new distribution..."
+                              f" Setting them to {min_weight} and renormalizing.")
+                    stationary[below_min] = min_weight
+                    stationary = stationary / stationary.sum()
 
-        # * Compute the new fragment weights
-        # But I need to normalize transition weights by counts here!
-        # transition_weights = stationary
+            assert np.isclose(stationary.sum(), 1.0), f"Stationary distribution not normalized in iter {_iter}!"
+            assert np.all(stationary >= 0), \
+                f"Stationary distribution not all positive!"
 
-        # This new stationary distribution is the
-        new_stationary = stationary.copy()
-        new_stationary[_counts == 0] = 0.0
-        # new_stationary /= sum(new_stationary)
-        new_stationary = np.divide(new_stationary, sum(new_stationary),
-                                       out=np.zeros_like(new_stationary), where=new_stationary > 0)
-        new_stationary = new_stationary/new_stationary.sum()
+            stationary_distributions.append(stationary)
 
-        assert np.isclose(new_stationary.sum(), 1.0), \
-            f"New distribution not normalized in iter {_iter}! Sums to {new_stationary.sum()}"
-        assert np.all(new_stationary >= 0), \
-            f"New distribution not all positive!"
+            if _iter > 1 and convergence is not None:
+                # rms_change = np.sqrt(np.mean(np.power(stationary - stationary_distributions[-1], 2)))
+                # print(f"RMS change was {rms_change:.1e}")
 
-        transition_weights = np.divide(new_stationary, _counts,
-                                       out=np.zeros_like(new_stationary), where=_counts > 0)
+                # This is the CHANGE in "energy"
+                abs_kl_unweighted = np.nansum(np.abs(
+                    np.log(stationary_distributions[-1]) - np.log(stationary_distributions[-2])
+                ))
+                # print(f"Abs unwgt. KL change was {abs_kl_unweighted:.5e}")
+
+                pbar_increment = (-np.log10(abs_kl_unweighted)) - pbar.n
+                pbar_increment = min(pbar_increment, convergence - pbar.n)
+                pbar.update()
 
 
-        all_transition_weights.append(transition_weights)
+                if abs_kl_unweighted < convergence:
+                    pbar.write(f"Voelz iteration is converged at iter {_iter}")
+                    break
 
-        # TODO: Break out of this if you're converged, i.e. if the distributions are no longer changing
+                # pbar.update((-np.log10(abs_kl_unweighted)) - pbar.n)
+
+
+            # * Compute the new fragment weights
+            # But I need to normalize transition weights by counts here!
+            # transition_weights = stationary
+
+            # This new stationary distribution is the
+            new_stationary = stationary.copy()
+            new_stationary[_counts == 0] = 0.0
+            # new_stationary /= sum(new_stationary)
+            new_stationary = np.divide(new_stationary, sum(new_stationary),
+                                           out=np.zeros_like(new_stationary), where=new_stationary > 0)
+            new_stationary = new_stationary/new_stationary.sum()
+
+            assert np.isclose(new_stationary.sum(), 1.0), \
+                f"New distribution not normalized in iter {_iter}! Sums to {new_stationary.sum()}"
+            assert np.all(new_stationary >= 0), \
+                f"New distribution not all positive!"
+
+            transition_weights = np.divide(new_stationary, _counts,
+                                           out=np.zeros_like(new_stationary), where=_counts > 0)
+
+
+            all_transition_weights.append(transition_weights)
+
 
     # ! Return the final stationary distribution
     if return_matrices:

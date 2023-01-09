@@ -124,7 +124,7 @@ if __name__ == "__main__":
     )
 
     # Prepare the dataset, if necessary
-    gen_path = f'../generated/{metaparameters["gen"]}'
+    gen_path = f'../../generated/{metaparameters["gen"]}'
     traj_set_name = (
         f"{metaparameters['gen']}_"
         f"{metaparameters['n_trajectory_sets']}-"

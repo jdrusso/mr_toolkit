@@ -3,8 +3,11 @@ from rich.logging import RichHandler
 import numpy as np
 from copy import deepcopy
 import tqdm.auto as tqdm
-from msm_we.utils import find_connected_sets
 from deeptime.clustering import KMeansModel
+
+from scipy.sparse import csr_matrix
+import scipy.sparse.csgraph as csgraph
+from scipy.sparse.sputils import isdense
 
 logging.basicConfig(
     level="NOTSET",
@@ -15,7 +18,67 @@ logging.basicConfig(
 log = logging.getLogger()
 log.setLevel(logging.INFO)
 
-# from line_profiler_pycharm import profile
+
+def find_connected_sets(C, directed=True):
+    r"""
+    This implementation is taken from msmtools.estimation.sparse.connectivity, at commit 9312660.
+    See the original at https://github.com/markovmodel/msmtools/blob/devel/msmtools/estimation/sparse/connectivity.py#L30
+    Compute connected components for a directed graph with weights
+    represented by the given count matrix.
+    Parameters
+    ----------
+    C : scipy.sparse matrix or numpy ndarray
+        square matrix specifying edge weights.
+    directed : bool, optional
+       Whether to compute connected components for a directed  or
+       undirected graph. Default is True.
+    Returns
+    -------
+    cc : list of arrays of integers
+        Each entry is an array containing all vertices (states) in
+        the corresponding connected component.
+    """
+    if isdense(C):
+        C = csr_matrix(C)
+
+    M = C.shape[0]
+    """ Compute connected components of C. nc is the number of
+    components, indices contain the component labels of the states
+    """
+    nc, indices = csgraph.connected_components(
+        C, directed=directed, connection="strong"
+    )
+
+    states = np.arange(M)  # Discrete states
+
+    """Order indices"""
+    ind = np.argsort(indices)
+    indices = indices[ind]
+
+    """Order states"""
+    states = states[ind]
+    """ The state index tuple is now of the following form (states,
+    indices)=([s_23, s_17,...,s_3, s_2, ...], [0, 0, ..., 1, 1, ...])
+    """
+
+    """Find number of states per component"""
+    count = np.bincount(indices)
+
+    """Cumulative sum of count gives start and end indices of
+    components"""
+    csum = np.zeros(len(count) + 1, dtype=int)
+    csum[1:] = np.cumsum(count)
+
+    """Generate list containing components, sort each component by
+    increasing state label"""
+    cc = []
+    for i in range(nc):
+        cc.append(np.sort(states[csum[i] : csum[i + 1]]))
+
+    """Sort by size of component - largest component first"""
+    cc = sorted(cc, key=lambda x: -len(x))
+
+    return cc
 
 
 def find_traps(transition_matrix):

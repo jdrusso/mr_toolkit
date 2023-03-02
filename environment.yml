@@ -10,5 +10,4 @@ dependencies:
  - deeptime
  - pip
  - pip:
-     - msm_we
      - .

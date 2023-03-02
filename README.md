@@ -5,7 +5,7 @@ Markov Reweighting Toolkit
 [![codecov](https://codecov.io/gh/REPLACE_WITH_OWNER_ACCOUNT/Markov Reweighting Toolkit/branch/main/graph/badge.svg)](https://codecov.io/gh/REPLACE_WITH_OWNER_ACCOUNT/Markov Reweighting Toolkit/branch/main)
 
 
-A short description of the project (less than one line).
+Tools for reweighting Markov models.
 
 ### Copyright
 

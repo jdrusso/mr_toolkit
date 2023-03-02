@@ -2,13 +2,18 @@ import deeptime.markov.tools.analysis
 import numpy as np
 from scipy.special import rel_entr
 import pandas as pd
-import msm_coarse_graining.traj_analysis as ta
-import pyemma
+import mr_toolkit.trajectory_analysis.traj_analysis as ta
 import logging
 import tqdm.auto as tqdm
-from msm_we.fpt import MarkovFPT
+import pyemma
+
 
 log = logging.getLogger()
+
+try:
+    from msm_we.fpt import MarkovFPT
+except ImportError:
+    log.warning("msm_we not found, fpt_distribution calculations will be unavailable")
 
 
 def get_kl(test_dist, ref_dist, return_nan=False):

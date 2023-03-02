@@ -84,7 +84,11 @@ def compute_avg_bin_weights(initial_weights, transition_matrix, max_s: int, lag:
     #       I think instead of raising the matrix to new powers, I can just keep multiplying the weights
 
     new_weights = initial_weights.copy()
-    for s in tqdm.tqdm(range(min_s, max_s - lag + 1), desc="Sweeping trajectory length", leave=leave):
+
+    # This is to make the new method equivalent with the old
+    weights += initial_weights
+
+    for s in tqdm.tqdm(range(min_s, max_s - lag), desc="Sweeping trajectory length", leave=leave):
 
         new_weights = np.dot(
             new_weights, transition_matrix
@@ -92,6 +96,15 @@ def compute_avg_bin_weights(initial_weights, transition_matrix, max_s: int, lag:
         weights += new_weights
 
     weights /= (max_s - lag + 1)
+
+    # # Old implementation
+    # weights = np.full_like(initial_weights, fill_value=0.0)
+    # for s in range(min_s, max_s - lag + 1):
+    #     new_weights = np.dot(
+    #         initial_weights, np.linalg.matrix_power(transition_matrix, s)
+    #     )
+    #     weights += new_weights
+    # weights /= (max_s - lag + 1)
 
     return weights
 

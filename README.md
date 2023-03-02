@@ -1,9 +1,18 @@
 Markov Reweighting Toolkit
 ==============================
 [//]: # (Badges)
-[![GitHub Actions Build Status](https://github.com/REPLACE_WITH_OWNER_ACCOUNT/mr_toolkit/workflows/CI/badge.svg)](https://github.com/REPLACE_WITH_OWNER_ACCOUNT/mr_toolkit/actions?query=workflow%3ACI)
-[![codecov](https://codecov.io/gh/REPLACE_WITH_OWNER_ACCOUNT/Markov Reweighting Toolkit/branch/main/graph/badge.svg)](https://codecov.io/gh/REPLACE_WITH_OWNER_ACCOUNT/Markov Reweighting Toolkit/branch/main)
 
+.. image:: https://github.com/jdrusso/mr_toolkit/actions/workflows/CI.yaml/badge.svg&event=push
+        :target: https://github.com/jdrusso/mr_toolkit/actions/workflows/CI.yaml
+
+.. image:: https://readthedocs.org/projects/mr-toolkit/badge/?version=latest
+    :target: https://mr-toolkit.readthedocs.io/en/latest/?badge=latest
+    :alt: Documentation Status
+
+
+* Author: John Russo
+* Free software: MIT license
+* Documentation: https://mr-toolkit.readthedocs.io
 
 Tools for reweighting Markov models.
 

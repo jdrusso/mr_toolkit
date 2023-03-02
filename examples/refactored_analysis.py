@@ -27,7 +27,7 @@ metaparameters = dict(
     # These below probably won't change much
     min_weight=1e-12,  # This just helps with numerical stability during the reweighting iteration
     last_frac=1.0,
-    n_voelz_iters=1000,
+    n_reweighting_iters=1000,
     gen="2j0f-7-1ns",
     dataset_flags="verycoarse",
     mfpt_method="first_step",
@@ -80,7 +80,7 @@ if __name__ == "__main__":
             # ),
         ],
         metrics=[
-            # {"name": "std_set_voelz_kl", "strategy": "store"},
+            # {"name": "std_set_reweighted_kl", "strategy": "store"},
             {
                 "name": "lag_vs_N",
                 "strategy": "constraint",
@@ -88,7 +88,7 @@ if __name__ == "__main__":
                 "threshold": 1.0,
             },
             {
-                "name": "avg_set_voelz_kl",
+                "name": "avg_set_reweighted_kl",
                 # "strategy": "store",
                 "strategy": "optimize",
                 "objective": "minimize",
@@ -103,13 +103,13 @@ if __name__ == "__main__":
             {"name": "set_committor_kl_mean_pyemma_irrev", "strategy": "store"},
             {"name": "set_committor_kl_std_pyemma_irrev", "strategy": "store"},
             {
-                "name": "set_voelz_unfolding_mfpt_dev",
+                "name": "set_reweighted_unfolding_mfpt_dev",
                 "strategy": "store",
                 # "strategy": "optimize",
                 # "objective": "minimize",
             },
             {
-                "name": "set_voelz_folding_mfpt_dev",
+                "name": "set_reweighted_folding_mfpt_dev",
                 # "strategy": "optimize",
                 "strategy": "store",
                 "objective": "minimize",
@@ -382,11 +382,11 @@ if __name__ == "__main__":
                     if np.isnan(mean_kl):
                         run.log_failure()
                     else:
-                        run.log_metric(f"avg_set_voelz_kl", mean_kl)
-                        run.log_metric(f"std_set_voelz_kl", std_kl)
+                        run.log_metric(f"avg_set_reweighted_kl", mean_kl)
+                        run.log_metric(f"std_set_reweighted_kl", std_kl)
                 else:
-                    run.log_metric(f"avg_set_voelz_kl", 0)
-                    run.log_metric(f"std_set_voelz_kl", 0)
+                    run.log_metric(f"avg_set_reweighted_kl", 0)
+                    run.log_metric(f"std_set_reweighted_kl", 0)
 
                 # ! Estimate MFPT
                 mfpt_estimates = {}
@@ -458,7 +458,7 @@ if __name__ == "__main__":
                         set_avg_mfpt_estimate = np.nanmean(_mfpt_estimates)
                         set_std_mfpt_estimate = np.nanstd(_mfpt_estimates) / np.sqrt(len(_mfpt_estimates))
                         run.log_metric(f"avg_{direction}_{method}_mfpt", set_avg_mfpt_estimate)
-                        run.log_metric(f"set_voelz_{direction}_mfpt_dev", set_std_mfpt_estimate)
+                        run.log_metric(f"set_reweighted_{direction}_mfpt_dev", set_std_mfpt_estimate)
 
                 analysis_run.ness_df.to_pickle(f"../results/{run.id}_ness_df.pkl")
 

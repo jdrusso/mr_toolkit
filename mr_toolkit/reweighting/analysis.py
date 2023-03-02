@@ -117,9 +117,9 @@ class AnalysisRun:
             setA_converged_iter = self.equil_df.loc[(x, method)].values.shape[0]
             setB_converged_iter = self.equil_df.loc[(y, method)].values.shape[0]
 
-            setA_voelz_last = self.equil_df.loc[(x, method)].values.astype(float)
-            setB_voelz_last = self.equil_df.loc[(y, method)].values.astype(float)
-            kl_sum = get_kl(setA_voelz_last, setB_voelz_last, return_nan=True)
+            setA_reweighted_last = self.equil_df.loc[(x, method)].values.astype(float)
+            setB_reweighted_last = self.equil_df.loc[(y, method)].values.astype(float)
+            kl_sum = get_kl(setA_reweighted_last, setB_reweighted_last, return_nan=True)
             kls[x, y] = kl_sum
 
         mean_kl = np.nanmean(kls)
@@ -141,7 +141,7 @@ class AnalysisRun:
                 states,
                 stationaries,
                 last_iter,
-                voelz_matrices,
+                reweighted_matrices,
             ) = self.compute_reweighted_stationary(
                 self.trajectory_sets[set_idx], **kwargs
             )
@@ -233,7 +233,7 @@ class AnalysisRun:
         lag,
         last_frac=None,
         min_weight=None,
-        n_voelz_iters=None,
+        n_reweighting_iters=None,
         store_matrices=False,
     ):
 
@@ -241,13 +241,13 @@ class AnalysisRun:
             last_frac = self.metaparameters.get("last_frac")
         if min_weight is None:
             min_weight = self.metaparameters.get("min_weight")
-        if n_voelz_iters is None:
-            n_voelz_iters = self.metaparameters.get("n_voelz_iters")
+        if n_reweighting_iters is None:
+            n_reweighting_iters = self.metaparameters.get("n_reweighting_iters")
 
-        voelz_stationaries = np.empty(shape=(n_voelz_iters, self.n_stratified_clusters))
-        voelz_matrices = np.empty(
+        reweighted_stationaries = np.empty(shape=(n_reweighting_iters, self.n_stratified_clusters))
+        reweighted_matrices = np.empty(
             shape=(
-                n_voelz_iters,
+                n_reweighting_iters,
                 self.n_stratified_clusters,
                 self.n_stratified_clusters,
             )
@@ -255,13 +255,13 @@ class AnalysisRun:
 
         try:
             (
-                voelz_distributions,
-                _voelz_matrices,
+                reweighted_distributions,
+                _reweighted_matrices,
                 weighted_count_matrices,
                 last_iter,
-            ) = ta.optimized_resliced_voelz(
+            ) = ta.optimized_resliced_reweighted(
                 discrete_trajectories,
-                n_voelz_iters,
+                n_reweighting_iters,
                 N,
                 lagtime=lag,
                 n_states=self.n_stratified_clusters,
@@ -275,16 +275,16 @@ class AnalysisRun:
             # This may trip if something goes awry in solving the matrices
 
             log.error(e)
-            for i in range(n_voelz_iters):
-                voelz_stationaries[i, :] = np.nan
-                voelz_matrices[i, :, :] = np.nan
+            for i in range(n_reweighting_iters):
+                reweighted_stationaries[i, :] = np.nan
+                reweighted_matrices[i, :, :] = np.nan
 
             last_iter = 0
 
         else:
-            for i, _distribution in enumerate(voelz_distributions):
-                voelz_stationaries[i, :] = _distribution
-                voelz_matrices[i] = _voelz_matrices[i]
+            for i, _distribution in enumerate(reweighted_distributions):
+                reweighted_stationaries[i, :] = _distribution
+                reweighted_matrices[i] = _reweighted_matrices[i]
 
         if store_matrices:
             index = pd.MultiIndex.from_product(
@@ -295,11 +295,11 @@ class AnalysisRun:
                 ],
                 names=["Iteration", "From", "To"],
             )
-            voelz_matrix_df = pd.DataFrame(
-                np.array(voelz_matrices).flatten(), index=index
+            reweighted_matrix_df = pd.DataFrame(
+                np.array(reweighted_matrices).flatten(), index=index
             )
-            voelz_matrix_df.to_pickle(
-                f"../results/{self.run.id}_set{self.current_traj_set}_voelz_matrix_df.pkl"
+            reweighted_matrix_df.to_pickle(
+                f"../results/{self.run.id}_set{self.current_traj_set}_reweighted_matrix_df.pkl"
             )
 
             index = pd.MultiIndex.from_product(
@@ -318,7 +318,7 @@ class AnalysisRun:
             )
 
         states = np.arange(self.n_stratified_clusters)
-        return states, voelz_stationaries, last_iter, voelz_matrices
+        return states, reweighted_stationaries, last_iter, reweighted_matrices
 
     @staticmethod
     def splice_trajectory(

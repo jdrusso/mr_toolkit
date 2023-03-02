@@ -1,8 +1,13 @@
 name: docs
 channels:
+  - conda-forge
+  - defaults
 dependencies:
     # Base depends
   - python
+  - deeptime
+  - sphinx
+  - sphinx-rtd-theme
   - pip
 
 

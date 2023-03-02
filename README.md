@@ -11,6 +11,7 @@ Tools for reweighting Markov models.
 
 - [] Remove `deeptime` dependency for kmeans -- replace with `sklearn`
 - [] Remove `msm_we` dependency for connected sets -- really heavy
+- [] Replace `pyemma` dependencies with `deeptime` (probably want to write some tests first)
 - [] Sample NESS splicing + estimation notebook
 - [] Sample reweighting notebook
 - [] Sample Sigopt hyperparameter optimization notebook

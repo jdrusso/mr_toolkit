@@ -8,6 +8,10 @@ dependencies:
  - tqdm
  - rich
  - deeptime
+ - sphinx
+ - sphinx_rtd_theme
+ - pandas
+ - pyemma
  - pip
  - pip:
      - pytest

@@ -64,19 +64,20 @@ if __name__ == "__main__":
 
     experiment = sigopt.create_experiment(
         name=f"2JOF - {metaparameters['n_trajectory_sets']} set, Lower data",
-        budget=110,
+        budget=50,
         parameters=[
             dict(name='N', type='int', bounds={'min': 2, 'max': metaparameters['trajectory_length']-1 }),
-            # dict(name='lag', type='int', bounds={'min': 1, 'max': metaparameters['trajectory_length']-5 }),
+            dict(name='last_frac', type='double', bounds={'min': 0.25, 'max': 1.0 }),
+            dict(name='lag', type='int', bounds={'min': 1, 'max': metaparameters['trajectory_length']-5 }),
             # dict(
             #     name="N", type="int", grid=[2, 5, 10, 25, 50, 100, 150, 200, 300, 400]
             # ),
-            dict(
-                name="lag",
-                type="int",
-                grid=[-1, 1],
-                # grid=[1, 2, 5, 10, 25, 50, 100, 150, 200, 300, 400],
-            ),
+            # dict(
+            #     name="lag",
+            #     type="int",
+            #     grid=[-1, 1],
+            #     grid=[1, 2, 5, 10, 25, 50, 100, 150, 200, 300, 400],
+            # ),
         ],
         metrics=[
             # {"name": "std_set_voelz_kl", "strategy": "store"},
@@ -329,12 +330,16 @@ if __name__ == "__main__":
     new_reference_distribution = loaded_dataset["new_reference_distribution"]
     n_stratified_clusters = stratified_centers.shape[0]
 
+    # TODO: Verify all parameters (particularly lagtime, last_frac) are being used correctly / actually being used
     for run in experiment.loop():
         with run:
             try:
                 run.log_dataset(
                     metaparameters["gen"] + "-" + metaparameters["dataset_flags"]
                 )
+
+                if metaparameters['last_frac'] is None:
+                    metaparameters['last_frac'] = run.params['last_frac']
 
                 # Lag time must be shorter than N, so this must be below 0
                 lag_vs_N = run.params["lag"] / run.params["N"]
@@ -560,7 +565,7 @@ if __name__ == "__main__":
                 run.log_failure()
 
 
-    if False:
+    if True:
 
         # ! Global model
         # Now, pick the best parameters and build a global model.
@@ -568,6 +573,10 @@ if __name__ == "__main__":
         best_run = list(experiment.get_best_runs())[0]
         best_N = best_run.assignments["N"]
         best_lag = best_run.assignments["lag"]
+        best_last_N = best_run.assignments["last_N"]
+
+        # best_N = 75
+        # best_lag = 1
 
         full_metaparameters = {k: v for k, v in metaparameters.items()}
         full_metaparameters["n_trajectory_sets"] = 1
@@ -578,6 +587,7 @@ if __name__ == "__main__":
 
             optimal_run.params["N"] = best_N
             optimal_run.params["lag"] = best_lag
+            optimal_run.params['last_N'] = best_last_N
 
             optimal_run.metadata = full_metaparameters
             optimal_run.log_dataset(
@@ -616,6 +626,8 @@ if __name__ == "__main__":
             analysis_run.active_df = analysis_run.equil_df
 
             for _method in equil_methods:
+                # This will also log KL-divergence to reference
+
                 kl = analysis_run.compute_stationary(
                     _method,
                     lag=optimal_run.params.get("lag"),
@@ -649,14 +661,16 @@ if __name__ == "__main__":
                 )
 
                 for method in mfpt_methods:
+                    # This also logs the MFPT
                     _mfpt, _, _ = analysis_run.compute_mfpt(
                         method,
                         source_states=source_states,
                         target_states=sink_states,
                         lag=optimal_run.params.get("lag"),
                         N=optimal_run.params.get("N"),
+                        last_frac=optimal_run.params.get("last_frac")
                     )
 
             analysis_run.ness_df.to_pickle(f"../results/{optimal_run.id}_ness_df.pkl")
 
-            log.info(f"Completed optimal run {optimal_run.id}")
+            log.info(f"Completed optimized global run {optimal_run.id}")

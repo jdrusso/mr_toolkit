@@ -7,6 +7,12 @@ Markov Reweighting Toolkit
 
 Tools for reweighting Markov models.
 
+### Todo
+
+- [] Remove `deeptime` dependency for kmeans -- replace with `sklearn`
+- [] Remove `msm_we` dependency for connected sets -- really heavy
+
+
 ### Copyright
 
 Copyright (c) 2023, John Russo

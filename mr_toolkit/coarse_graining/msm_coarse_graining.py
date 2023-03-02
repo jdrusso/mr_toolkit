@@ -1,6 +1,7 @@
 """Main module with code for coarse-graining transition matrices and computing bin-weights."""
 import numpy as np
 import scipy.linalg as la
+import tqdm.auto as tqdm
 try:
     import msmtools
 except ModuleNotFoundError:

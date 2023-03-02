@@ -39,7 +39,8 @@ def build_fine_transition_matrix(height_ratio: float, num_bins: int) -> np.ndarr
     return normalized_t_matrix
 
 
-def compute_avg_bin_weights(initial_weights, transition_matrix, max_s: int, lag: int = 1, min_s: int  = 0):
+def compute_avg_bin_weights(initial_weights, transition_matrix, max_s: int, lag: int = 1, min_s: int = 0,
+                            leave=False):
     """
     Obtain the time-averaged bin weights for a lag of 1, described by
 
@@ -62,6 +63,9 @@ def compute_avg_bin_weights(initial_weights, transition_matrix, max_s: int, lag:
     min_s : int
         Earliest trajectory point to use in sliding window calculation. Defaults to 0.
 
+    leave : bool
+        Leave TQDM progress bar on completion
+
     Returns
     -------
     wi_bar : np.ndarray (`n_states`)
@@ -72,12 +76,14 @@ def compute_avg_bin_weights(initial_weights, transition_matrix, max_s: int, lag:
 
     weights = np.full_like(initial_weights, fill_value=0.0)
 
-    # Remember, at a lag of 1 this should iterate over values from 0 to max_s - 1
-    # Need the +1 because range is end-exclusive
-    for s in range(min_s, max_s - lag + 1):
+    # This needed a more efficient implementation...
+    #       I think instead of raising the matrix to new powers, I can just keep multiplying the weights
+
+    new_weights = initial_weights.copy()
+    for s in tqdm.tqdm(range(min_s, max_s - lag + 1), desc="Sweeping trajectory length", leave=leave):
 
         new_weights = np.dot(
-            initial_weights, np.linalg.matrix_power(transition_matrix, s)
+            new_weights, transition_matrix
         )
         weights += new_weights
 

@@ -3,7 +3,7 @@ from rich.logging import RichHandler
 import numpy as np
 from copy import deepcopy
 import tqdm.auto as tqdm
-from msm_we.msm_we import find_connected_sets
+from msm_we.utils import find_connected_sets
 from deeptime.clustering import KMeansModel
 
 logging.basicConfig(
@@ -61,6 +61,15 @@ def clean_matrix(transition_matrix):
 
 
 def transform_stratified(cluster_centers, projection, bin_boundaries, tic_rmsd):
+    """
+    Apply a set of stratified clusters to a TICA projection
+
+    :param cluster_centers:
+    :param projection:
+    :param bin_boundaries:
+    :param tic_rmsd:
+    :return:
+    """
 
     discretized = [np.full(len(x[1][0]), fill_value=np.nan) for x in projection]
     traj_starts = np.cumsum([len(x) for x in discretized])

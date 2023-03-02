@@ -37,7 +37,7 @@ jobs:
       # More info on options: https://github.com/marketplace/actions/provision-with-micromamba
       - uses: mamba-org/provision-with-micromamba@main
         with:
-          environment-file: devtools/conda-envs/test_env.yaml
+          environment-file: environment.yml #devtools/conda-envs/test_env.yaml
           environment-name: test
           channels: conda-forge,defaults
           extra-specs: |

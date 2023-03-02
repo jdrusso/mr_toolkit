@@ -2,12 +2,8 @@ Markov Reweighting Toolkit
 ==============================
 [//]: # (Badges)
 
-.. image:: https://github.com/jdrusso/mr_toolkit/actions/workflows/CI.yaml/badge.svg&event=push
-        :target: https://github.com/jdrusso/mr_toolkit/actions/workflows/CI.yaml
-
-.. image:: https://readthedocs.org/projects/mr-toolkit/badge/?version=latest
-    :target: https://mr-toolkit.readthedocs.io/en/latest/?badge=latest
-    :alt: Documentation Status
+[![Tests](https://github.com/jdrusso/mr_toolkit/actions/workflows/CI.yaml/badge.svg)](https://github.com/jdrusso/mr_toolkit/actions/workflows/CI.yaml)
+[![Documentation](https://readthedocs.org/projects/mr-toolkit/badge/?version=latest)](https://mr-toolkit.readthedocs.io/en/latest/?badge=latest)
 
 
 * Author: John Russo

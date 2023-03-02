@@ -1,7 +1,10 @@
 """Main module with code for coarse-graining transition matrices and computing bin-weights."""
 import numpy as np
 import scipy.linalg as la
-import msmtools
+try:
+    import msmtools
+except ModuleNotFoundError:
+    print("msmtools not found...")
 from copy import deepcopy
 
 

@@ -10,4 +10,5 @@ dependencies:
  - deeptime
  - pip
  - pip:
+     - pytest
      - .

@@ -23,10 +23,35 @@ def compute_reweighted_stationary(
         N,
         lag,
         n_clusters,
-        last_frac=None,
-        min_weight=None,
-        n_reweighting_iters=None,
+        last_frac=1.0,
+        min_weight=1e-12,
+        n_reweighting_iters=100,
 ):
+    """
+    Estimates a stationary distribution from a discrete trajectory using reweighted MSMs.
+
+    Parameters
+    ----------
+    discrete_trajectories: array-like
+        2-D array or list of lists with discretized trajectories
+    N: int
+        Fragment length for reweighting
+    lag: int
+        Lagtime used in reweighting MSMs
+    n_clusters: int
+        Number of total states in the reweighted models (or in the discretization)
+    last_frac: float
+        Fraction of the trajectories to use. I.e., last_frac=0.25 only uses the last 1/4 of the trajectories.
+    min_weight: float
+        Minimum bound on weights during reweighting iteration
+    n_reweighting_iters: int
+        Maximum number of reweighting iterations
+
+    Returns
+    -------
+    (Set of state indices, Stationary distributions at each reweighting iteration, Total number of iterations before
+        convergence, estimated transition matrices at each reweighting iteration)
+    """
 
     reweighted_stationaries = np.empty(shape=(n_reweighting_iters, n_clusters))
     reweighted_matrices = np.empty(

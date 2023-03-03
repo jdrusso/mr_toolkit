@@ -240,7 +240,7 @@ def remap_trajs(trajs):
     return trajs, n_states, consecutive_states
 
 
-def optimized_resliced_voelz(_trajs, n_iterations, _N, n_states,
+def optimized_resliced_reweighted(_trajs, n_iterations, _N, n_states,
                              lagtime=1,
                              _initial_weights=None, return_matrices=False,
                              last_frac=1.0,
@@ -515,7 +515,7 @@ def optimized_resliced_voelz(_trajs, n_iterations, _N, n_states,
 
 
                 if abs_kl_unweighted < convergence:
-                    pbar.write(f"Voelz iteration is converged at iter {_iter}")
+                    pbar.write(f"reweighted iteration is converged at iter {_iter}")
                     break
 
                 # pbar.update((-np.log10(abs_kl_unweighted)) - pbar.n)
@@ -665,7 +665,7 @@ def build_resliced_msm(_trajs, _initial_weights, N, total_pbar=None):
             #         # It feels like there's a much faster algorithm for this, but I need to draw it out
             #         # The trick would be not iterating over fragments, and instead always looking forward X amount?
             #
-            #     # Counts n_voelz * n_trajs * (len(traj) - N)
+            #     # Counts n_reweighted * n_trajs * (len(traj) - N)
             #     total_pbar.update(1)
 
     return count_matrix
@@ -744,7 +744,7 @@ def build_msm(trajs, initial_weights=None, reslicing=False, N=None, total_pbar=N
     except AssertionError as e:
         raise e
 
-    # For Voelz iteration, do I want to:
+    # For reweighted iteration, do I want to:
     #    [Did this] - - - Weight the count matrices by the trajectory weights, and then add them and norm
     #    - Weight the transition matrices by the trajectory weights, and then add them
     # Looks like these are equivalent, I'll do the former because it makes the normalization easier
@@ -789,9 +789,9 @@ def build_msm(trajs, initial_weights=None, reslicing=False, N=None, total_pbar=N
 
 
 # @profile
-def do_voelz(trajs, n_iters, reslicing=False, initial_pSS=None, N=None, _pbar=None, _total_pbar=None):
+def do_reweighted(trajs, n_iters, reslicing=False, initial_pSS=None, N=None, _pbar=None, _total_pbar=None):
     """
-    Estimate equilibrium distributions using Voelz distributions
+    Estimate equilibrium distributions using reweighted distributions
 
     :param trajs: array-like, trajectories to build MSM from
     :param n_iters: int, number of iterations

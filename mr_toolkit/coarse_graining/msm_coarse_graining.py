@@ -400,9 +400,29 @@ def get_naive_hill_mfpt(T_ss, ss_dist, target_mesostates, all_other_states):
     return 1./flux
 
 
-def make_ss(cg_matrix, target_state, source_state, keep_sink_entry=False):
+def make_ss(matrix, target_state, source_state, keep_sink_entry=False):
+    """
+    Given a matrix, add simple recycling boundary conditions from the target to the source.
 
-    _ss_matrix = deepcopy(cg_matrix)
+    Parameters
+    ----------
+
+    matrix: array-like
+        A transition matrix
+    target_state: array-like
+        Set of target states
+    source_state: array-like
+        Set of source states
+    keep_sink_entry: boolean
+        Keep one step in the target state if true, otherwise any entry into the target instead goes directly
+        to the source
+
+    Returns
+    -------
+    The matrix with recycling boundary conditions.
+    """
+
+    _ss_matrix = deepcopy(matrix)
 
     if not keep_sink_entry:
         _ss_matrix[:, source_state] += _ss_matrix[:, target_state]

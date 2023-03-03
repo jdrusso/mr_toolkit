@@ -6,8 +6,7 @@ import mr_toolkit.trajectory_analysis.traj_analysis as ta
 import logging
 import tqdm.auto as tqdm
 import pyemma
-from splicing import splice_trajectory, get_receiving_distribution
-
+from splicing import splice_trajectory, get_receiving_distribution, splice_trajectories, iterative_trajectory_splicing
 
 log = logging.getLogger()
 
@@ -26,7 +25,7 @@ def get_kl(test_dist, ref_dist, return_nan=False):
     :param return_nan: If the KL divergence is invalid for some reason, return NaN if true or -1 otherwise.
     :return: The KL divergence of the two distributions. If invalid, -1 or NaN depending on the value of return_nan.
     """
-    elem_kl = rel_entr(test_dist, ref_dist,)
+    elem_kl = rel_entr(test_dist, ref_dist, )
     kl_sum = np.nansum(elem_kl[elem_kl < np.inf])
 
     if kl_sum == 0:
@@ -41,14 +40,14 @@ class AnalysisRun:
     """
 
     def __init__(
-        self,
-        _run,
-        _reference,
-        _trajectory_sets,
-        dt=1,
-        lag=None,
-        # mfpt_method=metaparameters['mfpt_method'],
-        metaparameters={},
+            self,
+            _run,
+            _reference,
+            _trajectory_sets,
+            dt=1,
+            lag=None,
+            # mfpt_method=metaparameters['mfpt_method'],
+            metaparameters={},
     ):
 
         self.run = _run
@@ -118,7 +117,7 @@ class AnalysisRun:
         )
 
         for x, y in np.array(
-            np.triu_indices(self.metaparameters["n_trajectory_sets"], 1)
+                np.triu_indices(self.metaparameters["n_trajectory_sets"], 1)
         ).T:
             setA_converged_iter = self.equil_df.loc[(x, method)].values.shape[0]
             setB_converged_iter = self.equil_df.loc[(y, method)].values.shape[0]
@@ -233,14 +232,14 @@ class AnalysisRun:
         return pyemma_states, pyemma_stationary, pyemma_msm.transition_matrix
 
     def compute_reweighted_stationary(
-        self,
-        discrete_trajectories,
-        N,
-        lag,
-        last_frac=None,
-        min_weight=None,
-        n_reweighting_iters=None,
-        store_matrices=False,
+            self,
+            discrete_trajectories,
+            N,
+            lag,
+            last_frac=None,
+            min_weight=None,
+            n_reweighting_iters=None,
+            store_matrices=False,
     ):
 
         if last_frac is None:
@@ -326,7 +325,6 @@ class AnalysisRun:
         states = np.arange(self.n_stratified_clusters)
         return states, reweighted_stationaries, last_iter, reweighted_matrices
 
-
     def iterative_trajectory_splicing(self,
                                       source_states,
                                       sink_states,
@@ -336,67 +334,36 @@ class AnalysisRun:
                                       convergence=1e-9,
                                       max_iterations=100):
 
+        # This just wraps the external call for backwards-compatibility with some existing analysis scripts.
+
         if splice_msm_lag is None:
             print(f"No lag provided for splice MSM -- using set value of {self.lag}")
+            splice_msm_lag = self.lag
 
-        self.splice_trajectories(msm_lag=splice_msm_lag, msm_reversible=msm_reversible,
-                                 target_steps_to_keep=target_steps_to_keep,
-                                 sink_states=sink_states.flatten(),
-                                 source_states=source_states.flatten(),
-                                 trajs_to_splice=None,
-                                 pbar_visible=False
-                                 )
-
-        pyemma_ness_msm = pyemma.msm.estimate_markov_model(
-            [x for x in self.spliced_trajs],
-            lag=splice_msm_lag,
-            reversible=msm_reversible,
+        spliced_trajectories = iterative_trajectory_splicing(
+            source_states=source_states,
+            sink_states=sink_states,
+            splice_msm_lag=splice_msm_lag,
+            msm_reversible=msm_reversible,
+            target_steps_to_keep=target_steps_to_keep,
+            convergence=convergence,
+            max_iterations=max_iterations,
+            n_clusters=self.n_stratified_clusters
         )
-        original_ness = np.zeros(self.n_stratified_clusters)
-        original_ness[pyemma_ness_msm.active_set] = pyemma_ness_msm.stationary_distribution.copy()
-        previous_ness = original_ness.copy()
 
-        for _iteration in tqdm.trange(max_iterations, desc="Splicing iteration"):
-            self.splice_trajectories(msm_lag=splice_msm_lag, msm_reversible=msm_reversible,
-                                     target_steps_to_keep=target_steps_to_keep,
-                                     sink_states=sink_states.flatten(),
-                                     source_states=source_states.flatten(),
-                                     trajs_to_splice=self.spliced_trajs,
-                                     pbar_visible=False)
-
-            pyemma_ness_msm = pyemma.msm.estimate_markov_model(
-                [x for x in self.spliced_trajs],
-                lag=splice_msm_lag,
-                reversible=msm_reversible,
-            )
-
-            # new_ness = np.zeros_like(original_ness)
-            new_ness = np.zeros(self.n_stratified_clusters)
-            new_ness[pyemma_ness_msm.active_set] = pyemma_ness_msm.stationary_distribution
-
-            rms_change_from_original = np.sqrt(np.mean(np.power(new_ness - original_ness, 2)))
-            rms_change_from_last = np.sqrt(np.mean(np.power(new_ness - previous_ness, 2)))
-            log.debug(
-                f"RMS change at iter {_iteration} is {rms_change_from_original:.2e} from original, "
-                f"{rms_change_from_last:.2e} from previous")
-
-            previous_ness = new_ness.copy()
-
-            if rms_change_from_last < convergence:
-                log.info(f"Splicing converged after {_iteration} iterations")
-                break
-
+        self.spliced_trajs = spliced_trajectories
 
     def splice_trajectories(
-        self,
-        source_states,
-        sink_states,
-        msm_lag=1,
-        msm_reversible=False,
-        target_steps_to_keep=1,
-        trajs_to_splice=None,
-        pbar_visible=True
+            self,
+            source_states,
+            sink_states,
+            msm_lag=1,
+            msm_reversible=False,
+            target_steps_to_keep=1,
+            trajs_to_splice=None,
+            pbar_visible=True
     ):
+        # This just wraps the external call for backwards-compatibility with some existing analysis scripts.
 
         set_idx = self.current_traj_set
 
@@ -405,56 +372,15 @@ class AnalysisRun:
         if trajs_to_splice is None:
             trajs_to_splice = self.trajectory_sets[set_idx]
 
-
-        pyemma_msm = pyemma.msm.estimate_markov_model(
-            [x for x in trajs_to_splice],
-            lag=msm_lag,
-            reversible=msm_reversible,
+        spliced_trajs = splice_trajectories(
+            trajs_to_splice=trajs_to_splice,
+            source_states=source_states,
+            sink_states=sink_states,
+            msm_lag=msm_lag,
+            msm_reversible=msm_reversible,
+            target_steps_to_keep=target_steps_to_keep,
+            pbar_visible=pbar_visible
         )
-
-
-        tmatrix = np.zeros(shape=(self.n_stratified_clusters, self.n_stratified_clusters))
-        tmatrix[np.ix_(pyemma_msm.active_set, pyemma_msm.active_set)] = pyemma_msm.transition_matrix
-        stationary = np.zeros(self.n_stratified_clusters)
-        stationary[pyemma_msm.active_set] = pyemma_msm.stationary_distribution
-
-        recycling_states = source_states
-        recycling_probabilities = get_receiving_distribution(tmatrix, stationary, source_states)
-
-        spliced_trajs = np.array(
-            [[t for t in traj] for traj in trajs_to_splice]
-        )
-
-        # TODO: Keep looping over the trajectories until no more splicing happens
-        #   This is necessary because it's possible to splice a fragment that has a sink entry itself, in which case
-        #   you'd need to splice again.
-        #   Right now, this is handled by only splicing fragments that don't re-enter the target in `splice_trajectory`
-        #   The problem with doing that is that on the second pass, all the spliced trajectories now look like they
-        #       entered the target at step 1, and so they try to get spliced again. This can be fixed by storing the indices
-        #       of any spliced trajectories, and their splice point, and only splicing again if the new splice point is
-        #       later.
-        rng = np.random.default_rng(seed=42)
-        did_splicing = 0
-        for i, trajectory in tqdm.tqdm(
-            enumerate(spliced_trajs), total=len(spliced_trajs), desc="Splicing",
-            disable=not pbar_visible
-        ):
-
-            spliced_trajectory, splice_point = splice_trajectory(
-                trajectory,
-                rng=rng,
-                # Splice using the original set of trajectories, rather than our updating spliced ones
-                splice_trajectories=trajs_to_splice,
-                target_states=sink_states,
-                recycling_states=recycling_states,
-                recycling_probabilities=recycling_probabilities,
-                target_steps_to_keep=target_steps_to_keep,
-            )
-
-            if splice_point is not None:
-                did_splicing += 1
-
-            spliced_trajs[i] = spliced_trajectory
 
         self.spliced_trajs = spliced_trajs
 
@@ -463,7 +389,7 @@ class AnalysisRun:
         assert self.active_df is not None, "No dataframe is active for storing results"
 
         assert (
-            self.current_direction is not None
+                self.current_direction is not None
         ), "No direction is specified for NESS/MFPTs"
         direction_index = self.directions.index(self.current_direction)
 
@@ -563,12 +489,12 @@ class AnalysisRun:
         elif method == "pyemma_rev":
             if 'N' in kwargs.keys(): kwargs.pop('N')
             _states, _stationary, _tmatrix = self.compute_pyemma_stationary(
-                self.spliced_trajs, reversible=True, lag=self.lag # TODO: Manage lag correctly
+                self.spliced_trajs, reversible=True, lag=self.lag  # TODO: Manage lag correctly
             )
         elif method == "pyemma_irrev":
             if 'N' in kwargs.keys(): kwargs.pop('N')
             _states, _stationary, _tmatrix = self.compute_pyemma_stationary(
-                self.spliced_trajs, reversible=False, lag=self.lag # TODO: Manage lag correctly
+                self.spliced_trajs, reversible=False, lag=self.lag  # TODO: Manage lag correctly
             )
         else:
             raise NotImplementedError("Invalid method specified")
@@ -605,19 +531,19 @@ class AnalysisRun:
 
     @staticmethod
     def mfpt(
-        method,
-        tmatrix,
-        source_states,
-        sink_states,
-        dt,
-        lag,
-        stationary=None,
-        clean_stationary=True,
+            method,
+            tmatrix,
+            source_states,
+            sink_states,
+            dt,
+            lag,
+            stationary=None,
+            clean_stationary=True,
     ):
 
         valid_methods = ["hill", "pyemma", "first_step", "fpt_distribution"]
         assert (
-            method in valid_methods
+                method in valid_methods
         ), f"Invalid method -- choose one of {valid_methods}"
 
         _stationary = stationary.copy()
@@ -669,7 +595,7 @@ class AnalysisRun:
 
             receiving_distribution = np.zeros_like(_stationary)
             receiving_distribution[source_states] = get_receiving_distribution(_tmatrix,
-                                                                                           _stationary, source_states)
+                                                                               _stationary, source_states)
 
             mfpt = deeptime.markov.tools.analysis.mfpt(_tmatrix, origin=source_states, target=sink_states,
                                                        mu=receiving_distribution)
@@ -696,6 +622,6 @@ class AnalysisRun:
             mfpt = np.average(times, weights=fpt_probs)
 
         # Do NOT need to adjust for lag time here!
-        mfpt = mfpt * dt #\* lag
+        mfpt = mfpt * dt  # \* lag
 
         return mfpt

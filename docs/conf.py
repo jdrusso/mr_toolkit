@@ -68,6 +68,7 @@ extensions = [
     'sphinx.ext.napoleon',
     'sphinx.ext.intersphinx',
     'sphinx.ext.extlinks',
+    'sphinx.ext.todo',
     'nbsphinx'
 ]
 
@@ -101,7 +102,7 @@ language = "en"
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 
 # The name of the Pygments (syntax highlighting) style to use.
-pygments_style = 'default'
+pygments_style = 'sphinx'
 
 
 # -- Options for HTML output -------------------------------------------------
@@ -110,6 +111,32 @@ pygments_style = 'default'
 # a list of builtin themes.
 #
 html_theme = 'sphinx_rtd_theme'
+mathjax_path = ("https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?"
+                "config=TeX-AMS-MML_HTMLorMML")
+mathjax_config = {
+    'TeX': {
+        'Macros': {
+            "lag": "\\lambda",
+            "occ": "\\Omega",
+            "Tfg": ["\mathbf{P}_{#1}", 1, ''],
+            "Tcg": ["\mathbf{T}_{#1}", 1, ''],
+            "wi": "\\bar{w}_i",
+            "timehorizon": "\\mathrm{TH}",
+            "eqnwi": "\\bar{w_i} = \\frac{1}{S - \\lambda - 1} \\sum_{s=0}^{S- \\lambda} \\sum_k w_k(0) \\, (\\mathbf{P}^s)_{k \\rightarrow i}",
+            "eqncg": """
+                \left .
+                \\Tcg[m \\rightarrow n] (S, \\lambda) =
+                \\sum_{i \\in m} \\sum_{j \\in n}
+                \\bar{w}_i(S, \\lambda) \\,
+                \\Tfg[i \\rightarrow j]^\\lambda (\\lambda)
+                \\middle/
+                \\sum_{i \\in m} \\bar{w}_i(S, \\lambda)
+                \\right .
+                """,
+            "eqnbuildocc": "\\Omega = \\frac{1}{\\timehorizon} \\sum_{\\lambda = 1}^{\\timehorizon} \\Tcg  (S, \\lambda)"
+        }
+   }
+}
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the

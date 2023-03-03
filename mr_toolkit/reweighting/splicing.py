@@ -19,8 +19,47 @@ def splice_trajectory(
         rng,
         target_steps_to_keep=1,
 ):
+    """
+    "Splices", or adds recycling boundary conditions to, a single discrete trajectory, using a set of discrete trajectories.
+
+    Splicing works by identifying the first point in the trajectory where it enters the target state.
+    The M points remaining in the trajectory after this point are truncated.
+
+    Then, it chooses a new starting state in the source, according to the input probability distribution.
+    A point in that state is chosen from the set of trajectories provided, and that point along with the following M-1
+    points are appended to (i.e., spliced on to) the truncated trajectory.
+
+    The final result is a trajectory of the same length as the input trajectory, but with recycling boundary conditions.
+
+    Note that the splicing is done iteratively, in case the segment being spliced contains another target entry.
+
+    Parameters
+    ----------
+    trajectory: array-like of int
+        A single discrete trajectory to add recycling boundary conditions to.
+    splice_trajectories: 2D array-like
+        A set of discrete trajectory, from which the splice segments are chosen.
+    target_states: array-like
+        Set of target states.
+    recycling_states: array-like
+        Set of source states, to recycle to.
+    recycling_probabilities: array-like
+        Probability distribution of the source states.
+    rng: np.random.default_rng
+        Random number generator to use.
+    target_steps_to_keep: int
+        Number of steps after reaching the target to preserve.
+        This should be left to 1, unless you know what you're doing.
+
+    Returns
+    -------
+
+    """
     points_in_target = np.isin(trajectory, target_states)
     splice_point = None
+
+    if not target_steps_to_keep == 1:
+        log.warning(f"Keeping {target_steps_to_keep} after the target entry -- make sure you know what you're doing!")
 
     if not points_in_target.any():
         return trajectory, None

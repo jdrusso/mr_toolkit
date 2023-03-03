@@ -6,6 +6,7 @@ import mr_toolkit.trajectory_analysis.traj_analysis as ta
 import logging
 import tqdm.auto as tqdm
 import pyemma
+from splicing import splice_trajectory, get_receiving_distribution
 
 
 log = logging.getLogger()
@@ -325,61 +326,6 @@ class AnalysisRun:
         states = np.arange(self.n_stratified_clusters)
         return states, reweighted_stationaries, last_iter, reweighted_matrices
 
-    @staticmethod
-    def splice_trajectory(
-        trajectory,
-        splice_trajectories,
-        target_states,
-        recycling_states,
-        recycling_probabilities,
-        rng,
-        target_steps_to_keep=1,
-    ):
-
-        points_in_target = np.isin(trajectory, target_states)
-        splice_point = None
-
-        if not points_in_target.any():
-            return trajectory, None
-
-        first_target_entry = np.argmax(points_in_target)
-
-        # TODO: What do we want to do with trajectories that start in this state? Splice as normal?
-        if first_target_entry == 0:
-            pass
-
-        # This preserves one point in the target
-        splice_point = first_target_entry + target_steps_to_keep
-
-        # If the target entries occur within steps_to_keep of the end of the trajectory, don't splice anything
-        if splice_point >= len(trajectory) - target_steps_to_keep + 1:
-            return trajectory, None
-
-        steps_remaining = len(trajectory) - first_target_entry - target_steps_to_keep
-
-        # Loop here, because you might pick a splice state that's not present within :steps_remaining of any traj
-        # TODO: Maybe replace this by looping over the whole splice procedure, so my selection is "pure" every time.
-        points_in_state = []
-        while len(points_in_state) == 0:
-            # Choose a state to splice from
-            splice_state = rng.choice(recycling_states, p=recycling_probabilities)
-
-            # Now choose a point in that state.
-            # Only choose where you'll have enough trajectory to fully splice what you need
-            points_in_state = np.argwhere(
-                splice_trajectories[:, :-steps_remaining] == splice_state
-            )
-
-        traj_idx, point_idx = rng.choice(points_in_state, axis=0)
-
-        spliced_trajectory = np.concatenate(
-            [
-                trajectory[:splice_point],
-                splice_trajectories[traj_idx, point_idx : point_idx + steps_remaining],
-            ]
-        )
-
-        return spliced_trajectory, splice_point
 
     def iterative_trajectory_splicing(self,
                                       source_states,
@@ -440,36 +386,6 @@ class AnalysisRun:
                 log.info(f"Splicing converged after {_iteration} iterations")
                 break
 
-    @staticmethod
-    def get_receiving_distribution(tmatrix, stationary, source_states):
-
-        # All transition matrix elements into the folded states
-        source_boundary_states = np.argwhere(
-            tmatrix[:, source_states].sum(axis=1)
-        ).flatten()
-
-        # Now filter down to the states that aren't already IN the source state
-        source_boundary_states_exclusive = np.setdiff1d(
-            source_boundary_states, source_states
-        )
-
-        boundary_probabilities = stationary[
-            source_boundary_states_exclusive
-        ]
-
-        # Total probability into folded from each of these states
-        # total_into_source = tmatrix[
-        #                         source_boundary_states_exclusive
-        #                     ][:, source_states].sum(axis=1)
-        # boundary_fluxes = boundary_probabilities * total_into_source
-        # boundary_fluxes = boundary_fluxes / sum(boundary_fluxes)
-
-        flux_into_source = boundary_probabilities @ \
-                           tmatrix[source_boundary_states_exclusive][:, source_states]
-
-        source_receiving_distribution = flux_into_source / sum(flux_into_source)
-
-        return source_receiving_distribution
 
     def splice_trajectories(
         self,
@@ -503,7 +419,7 @@ class AnalysisRun:
         stationary[pyemma_msm.active_set] = pyemma_msm.stationary_distribution
 
         recycling_states = source_states
-        recycling_probabilities = self.get_receiving_distribution(tmatrix, stationary, source_states)
+        recycling_probabilities = get_receiving_distribution(tmatrix, stationary, source_states)
 
         spliced_trajs = np.array(
             [[t for t in traj] for traj in trajs_to_splice]
@@ -524,7 +440,7 @@ class AnalysisRun:
             disable=not pbar_visible
         ):
 
-            spliced_trajectory, splice_point = self.splice_trajectory(
+            spliced_trajectory, splice_point = splice_trajectory(
                 trajectory,
                 rng=rng,
                 # Splice using the original set of trajectories, rather than our updating spliced ones
@@ -752,7 +668,7 @@ class AnalysisRun:
             # So even an "invalid" (by their definition) transition matrix will work.
 
             receiving_distribution = np.zeros_like(_stationary)
-            receiving_distribution[source_states] = AnalysisRun.get_receiving_distribution(_tmatrix,
+            receiving_distribution[source_states] = get_receiving_distribution(_tmatrix,
                                                                                            _stationary, source_states)
 
             mfpt = deeptime.markov.tools.analysis.mfpt(_tmatrix, origin=source_states, target=sink_states,
@@ -762,7 +678,7 @@ class AnalysisRun:
 
             assert _stationary is not None
 
-            receiving_distribution = AnalysisRun.get_receiving_distribution(_tmatrix, _stationary, source_states)
+            receiving_distribution = get_receiving_distribution(_tmatrix, _stationary, source_states)
             initial_probs = receiving_distribution
             initial_states = source_states
             # initial_probs = _stationary[source_states] / sum(_stationary[source_states])

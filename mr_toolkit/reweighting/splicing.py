@@ -31,8 +31,6 @@ def splice_trajectory(
 
     The final result is a trajectory of the same length as the input trajectory, but with recycling boundary conditions.
 
-    Note that the splicing is done iteratively, in case the segment being spliced contains another target entry.
-
     Parameters
     ----------
     trajectory: array-like of int
@@ -53,7 +51,7 @@ def splice_trajectory(
 
     Returns
     -------
-
+    spliced trajectory, index of the point at which splicing was done
     """
     points_in_target = np.isin(trajectory, target_states)
     splice_point = None
@@ -161,6 +159,37 @@ def splice_trajectories(
         target_steps_to_keep=1,
         pbar_visible=True
 ):
+    """
+    Splices a set of trajectories to add recycling boundary conditions to all of them.
+
+    See :meth:`mr_toolkit.reweighting.splicing.splice_trajectory` for more details.
+
+    Note that the splicing is done iteratively, in case the segment being spliced introduces another target entry.
+
+    Parameters
+    ----------
+    trajs_to_splice: 2D array-like
+        A set of discrete trajectories to splice into recycling boundary conditions
+    source_states: array-like
+        Set of source states
+    sink_states: array-like
+        Set of target/sink states
+    n_clusters: int
+        Number of clusters present in the trajectory discretization
+    msm_lag: int
+        Lagtime for MSMs
+    msm_reversible: boolean
+        Reversibility for MSM
+    target_steps_to_keep: int
+        Number of steps after reaching the target to preserve.
+        This should be left to 1, unless you know what you're doing.
+    pbar_visible: bool
+        Show the progress bar during iteration
+
+    Returns
+    -------
+    Set of spliced trajectories
+    """
     # Build an MSM to approximate the equilibrium distribution over the boundary states
     # TODO: Do we want to just use the PyEmma MSM? Or is there a better choice?
 

@@ -20,11 +20,12 @@ log.setLevel(logging.INFO)
 
 
 def find_connected_sets(C, directed=True):
-    r"""
+    """
     This implementation is taken from msmtools.estimation.sparse.connectivity, at commit 9312660.
     See the original at https://github.com/markovmodel/msmtools/blob/devel/msmtools/estimation/sparse/connectivity.py#L30
     Compute connected components for a directed graph with weights
     represented by the given count matrix.
+
     Parameters
     ----------
     C : scipy.sparse matrix or numpy ndarray
@@ -32,6 +33,7 @@ def find_connected_sets(C, directed=True):
     directed : bool, optional
        Whether to compute connected components for a directed  or
        undirected graph. Default is True.
+       
     Returns
     -------
     cc : list of arrays of integers

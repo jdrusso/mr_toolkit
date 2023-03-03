@@ -7,7 +7,8 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "mr_toolkit"
 description = "A short description of the project (less than one line)."
-dynamic = ["version"]
+version = "0.0.1"
+#dynamic = ["version"]
 readme = "README.md"
 authors = [
     { name = "John Russo", email = "mrtoolkit@jdrusso.dev" }

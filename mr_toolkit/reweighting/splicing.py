@@ -108,6 +108,27 @@ def splice_trajectory(
 
 
 def get_receiving_distribution(tmatrix, stationary, source_states):
+    """
+    Estimates the "receiving distribution" for a given transition matrix.
+
+    The receiving distribution is the boundary distribution corresponding to where trajectories go one step after leaving
+    the source states.
+
+    Recycling into the receiving distribution produces a nonequilibrium steady-state.
+
+    Parameters
+    ----------
+    tmatrix: array-like
+        Transition matrix
+    stationary: array-like
+        Stationary distribution of the transition matrix
+    source_states: array-like of int
+        Set of source states
+
+    Returns
+    -------
+    Receiving distribution
+    """
     # All transition matrix elements into the folded states
     source_boundary_states = np.argwhere(
         tmatrix[:, source_states].sum(axis=1)

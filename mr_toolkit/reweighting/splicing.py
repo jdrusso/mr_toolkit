@@ -256,6 +256,40 @@ def iterative_trajectory_splicing(
         target_steps_to_keep=1,
         convergence=1e-9,
         max_iterations=100):
+    """
+    Performs trajectory splicing on a set of trajectories, like :meth:`mr_toolkit.reweighting.splicing.splice_trajectory`.
+
+    However, this function does it iteratively.
+    The trajectories are spliced, and used to estimate the steady-state distribution.
+    This is used to make a better estimate of the receiving distribution, which is then used for another round of splicing.
+    This process repeats until convergence.
+
+    Parameters
+    ----------
+    trajs: 2D array-like
+        A set of discrete trajectories to splice into recycling boundary conditions
+    source_states: array-like
+        Set of source states
+    sink_states: array-like
+        Set of target/sink states
+    n_clusters: int
+        Number of clusters present in the trajectory discretization
+    splice_msm_lag: int
+        Lagtime for MSMs
+    msm_reversible: boolean
+        Reversibility for MSM
+    target_steps_to_keep: int
+        Number of steps after reaching the target to preserve.
+        This should be left to 1, unless you know what you're doing.
+    convergence: float
+        Threshold for RMS change in reweighted stationary distribution estimates to consider iteration converged.
+    max_iterations: int
+        Maximum number of iterations to perform.
+
+    Returns
+    -------
+    Set of spliced trajectories
+    """
 
     spliced_trajs = splice_trajectories(
         trajs_to_splice=trajs,

@@ -6,8 +6,8 @@ build-backend = "setuptools.build_meta"
 # https://packaging.python.org/en/latest/specifications/declaring-project-metadata/
 [project]
 name = "mr_toolkit"
-description = "A short description of the project (less than one line)."
-version = "0.0.1"
+description = "Tools for reweighted estimation of Markov models."
+version = "0.0.2"
 #dynamic = ["version"]
 readme = "README.md"
 authors = [

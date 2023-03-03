@@ -6,7 +6,7 @@ import mr_toolkit.trajectory_analysis.traj_analysis as ta
 import logging
 import tqdm.auto as tqdm
 import pyemma
-from splicing import get_receiving_distribution, splice_trajectories, iterative_trajectory_splicing
+from .splicing import get_receiving_distribution, splice_trajectories, iterative_trajectory_splicing
 
 log = logging.getLogger()
 
@@ -297,6 +297,8 @@ class AnalysisRun:
             n_reweighting_iters=None,
             store_matrices=False,
     ):
+
+        # TODO: This is obsolete now, remove this and just wrap a call to the static version
 
         if last_frac is None:
             last_frac = self.metaparameters.get("last_frac")

@@ -12,6 +12,7 @@ Welcome to Markov Reweighting Toolkit's documentation!
 
    getting_started
    api
+   examples
 
 
 

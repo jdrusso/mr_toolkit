@@ -1,10 +1,12 @@
+"""
+Code for reweighting MSMs and obtaining reweighted estimates of steady-state.
+"""
 import deeptime.markov.tools.analysis
 import numpy as np
 from scipy.special import rel_entr
 import pandas as pd
 import mr_toolkit.trajectory_analysis.traj_analysis as ta
 import logging
-import tqdm.auto as tqdm
 import pyemma
 from .splicing import get_receiving_distribution, splice_trajectories, iterative_trajectory_splicing
 

@@ -1,3 +1,6 @@
+"""
+Code for splicing equilibrium trajectories into nonequilibrium steady-state trajectories.
+"""
 import pyemma
 import tqdm.auto as tqdm
 import numpy as np

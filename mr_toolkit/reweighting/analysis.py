@@ -6,7 +6,7 @@ import mr_toolkit.trajectory_analysis.traj_analysis as ta
 import logging
 import tqdm.auto as tqdm
 import pyemma
-from splicing import splice_trajectory, get_receiving_distribution, splice_trajectories, iterative_trajectory_splicing
+from splicing import get_receiving_distribution, splice_trajectories, iterative_trajectory_splicing
 
 log = logging.getLogger()
 
@@ -14,6 +14,62 @@ try:
     from msm_we.fpt import MarkovFPT
 except ImportError:
     log.warning("msm_we not found, fpt_distribution calculations will be unavailable")
+
+
+def compute_reweighted_stationary(
+        discrete_trajectories,
+        N,
+        lag,
+        n_clusters,
+        last_frac=None,
+        min_weight=None,
+        n_reweighting_iters=None,
+):
+
+    reweighted_stationaries = np.empty(shape=(n_reweighting_iters, n_clusters))
+    reweighted_matrices = np.empty(
+        shape=(
+            n_reweighting_iters,
+            n_clusters,
+            n_clusters,
+        )
+    )
+
+    try:
+        (
+            reweighted_distributions,
+            _reweighted_matrices,
+            weighted_count_matrices,
+            last_iter,
+        ) = ta.optimized_resliced_reweighted(
+            discrete_trajectories,
+            n_reweighting_iters,
+            N,
+            lagtime=lag,
+            n_states=n_clusters,
+            last_frac=last_frac,
+            return_matrices=True,
+            min_weight=min_weight,
+            convergence=1e-10,  # Convergence threshold in units of kT
+        )
+
+    except (AssertionError, np.linalg.LinAlgError) as e:
+        # This may trip if something goes awry in solving the matrices
+
+        log.error(e)
+        for i in range(n_reweighting_iters):
+            reweighted_stationaries[i, :] = np.nan
+            reweighted_matrices[i, :, :] = np.nan
+
+        last_iter = 0
+
+    else:
+        for i, _distribution in enumerate(reweighted_distributions):
+            reweighted_stationaries[i, :] = _distribution
+            reweighted_matrices[i] = _reweighted_matrices[i]
+
+    states = np.arange(n_clusters)
+    return states, reweighted_stationaries, last_iter, reweighted_matrices
 
 
 def get_kl(test_dist, ref_dist, return_nan=False):

@@ -119,7 +119,7 @@ def get_kl(test_dist, ref_dist, return_nan=False):
 
 class AnalysisRun:
     """
-    Class to handle computing various observables from a trajectory set.
+    Convenience class to handle computing various observables from a trajectory set and storing relevant hyperparameters.
     """
 
     def __init__(

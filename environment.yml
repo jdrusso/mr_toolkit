@@ -13,9 +13,9 @@ dependencies:
  - nbsphinx
  - pandas
  - pyemma
+ - pytest
+ - pytest-cov
  - pip
  - pip:
-     - pytest
-     - pytest-cov
      - synd
      - .

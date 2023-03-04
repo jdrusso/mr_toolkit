@@ -257,7 +257,8 @@ def iterative_trajectory_splicing(
         convergence=1e-9,
         max_iterations=100):
     """
-    Performs trajectory splicing on a set of trajectories, like :meth:`mr_toolkit.reweighting.splicing.splice_trajectory`.
+    Performs trajectory splicing on a set of trajectories,
+    like :meth:`mr_toolkit.reweighting.splicing.splice_trajectories`.
 
     However, this function does it iteratively.
     The trajectories are spliced, and used to estimate the steady-state distribution.

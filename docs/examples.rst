@@ -13,3 +13,8 @@ Examples
    :maxdepth: 1
 
    _examples/ness_splicing
+
+.. toctree::
+   :maxdepth: 1
+
+   _examples/hyperparam_optimization

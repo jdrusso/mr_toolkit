@@ -153,6 +153,8 @@ def get_kl(test_dist, ref_dist, return_nan=False):
 
 class AnalysisRun:
     """
+    WARNING: You should almost certainly not use this!
+
     Convenience class to handle computing various observables from a trajectory set and storing relevant hyperparameters.
     """
 

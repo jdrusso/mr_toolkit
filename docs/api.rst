@@ -40,11 +40,3 @@ Reweighted MSM estimation
 .. automodule:: mr_toolkit.reweighting.analysis
     :members:
     :exclude-members: AnalysisRun
-
-
-
-AnalysisRun convenience class for MSM estimation
--------------------------------------------------
-.. autoclass:: mr_toolkit.reweighting.analysis.AnalysisRun
-    :members:
-    :undoc-members:

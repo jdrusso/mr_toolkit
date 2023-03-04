@@ -9,7 +9,7 @@ API Documentation
    mr_toolkit.trajectory_analysis.traj_analysis
 
 MSM Coarse-graining
--------------------
+--------------------
 
 Coarse-graining
 _______________
@@ -21,13 +21,11 @@ Estimating observables
 ______________________
 .. automodule:: mr_toolkit.coarse_graining.msm_coarse_graining
     :members: get_equil, get_comm, get_hill_mfpt, get_naive_hill_mfpt
-    :noindex:
 
 Constructing matrices
 _____________________
 .. automodule:: mr_toolkit.coarse_graining.msm_coarse_graining
     :members: build_fine_transition_matrix, build_occupancy
-    :noindex:
 
 
 Trajectory Splicing

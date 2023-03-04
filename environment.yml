@@ -10,7 +10,7 @@ dependencies:
  - rich
  - deeptime
  - sphinx
- - sphinx_rtd_theme
+ - sphinx_rtd_theme>=1.0
  - nbsphinx
  - pandas
  - pyemma

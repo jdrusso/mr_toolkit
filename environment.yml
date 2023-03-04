@@ -16,7 +16,10 @@ dependencies:
  - pyemma
  - pytest
  - pytest-cov
+ - jupyterlab
+ - ipywidgets
  - pip
  - pip:
      - synd
+     - sigopt
      - .

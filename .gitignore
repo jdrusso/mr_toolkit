@@ -111,3 +111,4 @@ ENV/
 docs/_examples
 docs/autosummary
 examples/sample_data/OFFLINE*
+examples/refactored_analysis.py

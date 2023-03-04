@@ -99,6 +99,40 @@ def compute_reweighted_stationary(
     return states, reweighted_stationaries, last_iter, reweighted_matrices
 
 
+def get_set_kls(distributions):
+    """
+    Get KL divergences between multiple sets of distributions.
+
+    I.e., a (4x10) input corresponds to 4x 10-element distributions.
+    This would return an upper triangular 4x4 matrix with the unique pairwise KL-divergences.
+
+    Parameters
+    ----------
+    distributions
+
+    Returns
+    -------
+
+    """
+
+    n_sets = len(distributions)
+
+    kls = np.full(
+        shape=(n_sets, n_sets),
+        fill_value=np.nan,
+    )
+    for x, y in np.array(np.triu_indices(n_sets, 1)).T:
+        setA_distribution = distributions[x]
+        setB_distribution = distributions[y]
+
+        kl_sum = get_kl(setA_distribution, setB_distribution, return_nan=True)
+        kls[x, y] = kl_sum
+
+    mean = np.mean(kls)
+
+    return mean
+
+
 def get_kl(test_dist, ref_dist, return_nan=False):
     """
     Obtain the KL divergence between two distributions.

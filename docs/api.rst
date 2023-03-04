@@ -4,8 +4,8 @@ API Documentation
 .. autosummary::
 
    mr_toolkit.coarse_graining.msm_coarse_graining
-   mr_toolkit.reweighting.analysis
    mr_toolkit.reweighting.splicing
+   mr_toolkit.reweighting.analysis
    mr_toolkit.trajectory_analysis.traj_analysis
 
 MSM Coarse-graining

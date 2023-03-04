@@ -19,7 +19,7 @@ Tools for reweighting Markov models.
 - [ ] Replace `pyemma` dependencies with `deeptime` (probably want to write some tests first)
 - [x] Sample NESS splicing + estimation notebook
 - [x] Sample reweighting notebook
-- [ ] Sample Sigopt hyperparameter optimization notebook
+- [x] Sample Sigopt hyperparameter optimization notebook
 
 
 ### Copyright

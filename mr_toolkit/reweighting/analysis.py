@@ -128,7 +128,7 @@ def get_set_kls(distributions):
         kl_sum = get_kl(setA_distribution, setB_distribution, return_nan=True)
         kls[x, y] = kl_sum
 
-    mean = np.mean(kls)
+    mean = np.nanmean(kls)
 
     return mean
 

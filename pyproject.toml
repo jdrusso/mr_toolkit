@@ -7,7 +7,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "mr_toolkit"
 description = "Tools for reweighted estimation of Markov models."
-version = "0.0.3"
+version = "0.0.4"
 #dynamic = ["version"]
 readme = "README.md"
 authors = [

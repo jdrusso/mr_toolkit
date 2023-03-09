@@ -6,6 +6,8 @@ try:
     import msmtools
 except ModuleNotFoundError:
     print("msmtools not found...")
+except AttributeError:
+    print("msmtools import failed")
 from copy import deepcopy
 
 

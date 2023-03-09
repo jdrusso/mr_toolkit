@@ -33,7 +33,7 @@ def find_connected_sets(C, directed=True):
     directed : bool, optional
        Whether to compute connected components for a directed  or
        undirected graph. Default is True.
-       
+
     Returns
     -------
     cc : list of arrays of integers
@@ -127,6 +127,8 @@ def clean_matrix(transition_matrix):
 
 def transform_stratified(cluster_centers, projection, bin_boundaries, tic_rmsd):
     """
+    You almost certainly don't want to be using this.
+    
     Apply a set of stratified clusters to a TICA projection
 
     :param cluster_centers:

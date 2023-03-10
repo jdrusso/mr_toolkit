@@ -18,3 +18,9 @@ Examples
    :maxdepth: 1
 
    _examples/hyperparam_optimization
+
+.. toctree::
+   :maxdepth: 1
+
+   _examples/stratified_clustering.ipynb
+

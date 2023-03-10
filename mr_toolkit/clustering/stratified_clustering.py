@@ -6,6 +6,7 @@ from copy import deepcopy
 
 
 class StratifiedClusters:
+    """Class for performing stratified k-means clustering."""
 
     def __init__(self, n_clusters: int, bin_bounds: ArrayLike):
         """
@@ -81,6 +82,17 @@ class StratifiedClusters:
             self.kmeans_models[i] = deepcopy(kmeans_estimator)
 
     def predict(self, data: ArrayLike):
+        """
+        Assigns stratified clusters to a set of input data.
+
+        Parameters
+        ----------
+        data: Array-like, The set of samples to assign to clusters
+
+        Returns
+        -------
+        Integer cluster assignments
+        """
 
         discretized = np.full((data.shape[0]), fill_value=-1, dtype=int)
 
@@ -117,11 +129,11 @@ class StratifiedClusters:
 
         Parameters
         ----------
-        state_to_remove
+        state_to_remove: int, The index of the state to remove
 
         Returns
         -------
-
+        The index of the removed state, in the space of the ORIGINAL clustering the model was built with.
         """
 
         cluster_offset = 0

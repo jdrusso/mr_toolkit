@@ -1,3 +1,4 @@
+"""Some convenience functions for MSM analysis."""
 import logging
 from rich.logging import RichHandler
 import numpy as np
@@ -128,7 +129,7 @@ def clean_matrix(transition_matrix):
 def transform_stratified(cluster_centers, projection, bin_boundaries, tic_rmsd):
     """
     You almost certainly don't want to be using this.
-    
+
     Apply a set of stratified clusters to a TICA projection
 
     :param cluster_centers:

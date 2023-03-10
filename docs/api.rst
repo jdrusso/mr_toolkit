@@ -6,7 +6,7 @@ API Documentation
    mr_toolkit.coarse_graining.msm_coarse_graining
    mr_toolkit.reweighting.splicing
    mr_toolkit.reweighting.analysis
-   mr_toolkit.trajectory_analysis.traj_analysis
+   mr_toolkit.clustering.StratifiedClusters
 
 MSM Coarse-graining
 --------------------
@@ -40,3 +40,8 @@ Reweighted MSM estimation
 .. automodule:: mr_toolkit.reweighting.analysis
     :members:
     :exclude-members: AnalysisRun
+
+Stratified Clustering
+----------------------
+.. automodule:: mr_toolkit.clustering
+    :members: StratifiedClusters

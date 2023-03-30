@@ -4,6 +4,8 @@ Markov Reweighting Toolkit
 
 [![Tests](https://github.com/jdrusso/mr_toolkit/actions/workflows/CI.yaml/badge.svg)](https://github.com/jdrusso/mr_toolkit/actions/workflows/CI.yaml)
 [![Documentation](https://readthedocs.org/projects/mr-toolkit/badge/?version=latest)](https://mr-toolkit.readthedocs.io/en/latest/?badge=latest)
+[![DOI](https://zenodo.org/badge/608795243.svg)](https://zenodo.org/badge/latestdoi/608795243)
+
 
 
 * Author: John Russo
